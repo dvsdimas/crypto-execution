@@ -68,6 +68,5 @@ INSERT INTO "execution_status" ("value") VALUES ('TIMED_OUT');
 INSERT INTO "execution_status" ("value") VALUES ('ERROR');
 INSERT INTO "execution_status" ("value") VALUES ('REJECTED');
 
-
 COMMIT;
 
