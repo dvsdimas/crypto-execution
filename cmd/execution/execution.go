@@ -3,9 +3,13 @@ package main
 import (
 	"database/sql"
 	_ "github.com/lib/pq"
+	prop "github.com/magiconair/properties"
 	log "github.com/sirupsen/logrus"
+	"msq.ai/constants"
 	"os"
 )
+
+const propertiesFileName string = "execution.properties"
 
 func init() {
 
@@ -30,24 +34,60 @@ func main() {
 
 	log.Trace("Current folder is [" + pwd + "]")
 
-	connStr := "postgres://msq:pwd@localhost:5432/msq"
+	//------------------------------------------------------------------------------------------------------------------
 
-	db, err := sql.Open("postgres", connStr)
+	properties := prop.MustLoadFile(propertiesFileName, prop.UTF8)
+
+	for k, v := range properties.Map() {
+		log.Debug("key[" + k + "] value[" + v + "]")
+	}
+
+	//------------------------------------------------------------------------------------------------------------------
+
+	checkDbConnection(properties)
+
+	//------------------------------------------------------------------------------------------------------------------
+
+	// TODO load dictionaries from DB
+
+	//------------------------------------------------------------------------------------------------------------------
+
+	// TODO start execution timeout validator
+
+	//------------------------------------------------------------------------------------------------------------------
+
+	// TODO start execution execution history notifier
+
+	//------------------------------------------------------------------------------------------------------------------
+
+	// TODO start REST provider
+
+	//------------------------------------------------------------------------------------------------------------------
+
+	// TODO perform some statistic calculation and print, send , something, ..... XZ
+}
+
+func checkDbConnection(properties *prop.Properties) {
+
+	log.Trace("Try to check DB connection ...")
+
+	db, err := sql.Open(constants.DbName, properties.MustGet(constants.PostgresUrlPropertyName))
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Cannot open DB connection !", err)
 	}
 
 	err = db.Ping()
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Cannot ping DB !", err)
 	}
 
 	err = db.Close()
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Cannot close DB connection!", err)
 	}
 
+	log.Trace("Successfully connected to DB")
 }
