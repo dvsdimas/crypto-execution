@@ -1,6 +1,8 @@
 package main
 
 import (
+	"database/sql"
+	_ "github.com/lib/pq"
 	log "github.com/sirupsen/logrus"
 	"os"
 )
@@ -26,6 +28,26 @@ func main() {
 		log.Fatal("Getwd error", err)
 	}
 
-	log.Debug("Current folder is [" + pwd + "]")
+	log.Trace("Current folder is [" + pwd + "]")
+
+	connStr := "postgres://msq:pwd@localhost:5432/msq"
+
+	db, err := sql.Open("postgres", connStr)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = db.Ping()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = db.Close()
+
+	if err != nil {
+		log.Fatal(err)
+	}
 
 }
