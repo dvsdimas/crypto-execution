@@ -74,19 +74,19 @@ func checkDbConnection(properties *prop.Properties) {
 	db, err := sql.Open(constants.DbName, properties.MustGet(constants.PostgresUrlPropertyName))
 
 	if err != nil {
-		log.Fatal("Cannot open DB connection !", err)
+		log.Fatal("Cannot open DB connection ! ", err)
 	}
 
 	err = db.Ping()
 
 	if err != nil {
-		log.Fatal("Cannot ping DB !", err)
+		log.Fatal("Cannot ping DB ! ", err)
 	}
 
 	err = db.Close()
 
 	if err != nil {
-		log.Fatal("Cannot close DB connection!", err)
+		log.Fatal("Cannot close DB connection! ", err)
 	}
 
 	log.Trace("Successfully connected to DB")
