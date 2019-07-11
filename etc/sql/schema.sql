@@ -79,7 +79,7 @@ CREATE TABLE "execution" (
     limit_price       NUMERIC(24,10) DEFAULT NULL,
     amount            NUMERIC(24, 10) NOT NULL,
     status_id         SMALLINT NOT NULL,
-    connector_id      SMALLINT NOT NULL,
+    connector_id      SMALLINT DEFAULT NULL,
     execution_type_id SMALLINT NOT NULL,
     execute_till_time TIMESTAMP NOT NULL,
     ref_position_id   TEXT DEFAULT NULL,
