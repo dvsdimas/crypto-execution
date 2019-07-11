@@ -1,11 +1,11 @@
 package main
 
 import (
-	"database/sql"
 	_ "github.com/lib/pq"
 	prop "github.com/magiconair/properties"
 	log "github.com/sirupsen/logrus"
 	"msq.ai/constants"
+	pgh "msq.ai/db/postgres/helper"
 	"os"
 )
 
@@ -44,7 +44,13 @@ func main() {
 
 	//------------------------------------------------------------------------------------------------------------------
 
-	checkDbConnection(properties)
+	url := properties.MustGet(constants.PostgresUrlPropertyName)
+
+	err = pgh.CheckDbUrl(url)
+
+	if err != nil {
+		log.Fatal("Cannot connect to DB with URL ["+url+"] ", err)
+	}
 
 	//------------------------------------------------------------------------------------------------------------------
 
@@ -65,29 +71,4 @@ func main() {
 	//------------------------------------------------------------------------------------------------------------------
 
 	// TODO perform some statistic calculation and print, send , something, ..... XZ
-}
-
-func checkDbConnection(properties *prop.Properties) {
-
-	log.Trace("Try to check DB connection ...")
-
-	db, err := sql.Open(constants.DbName, properties.MustGet(constants.PostgresUrlPropertyName))
-
-	if err != nil {
-		log.Fatal("Cannot open DB connection ! ", err)
-	}
-
-	err = db.Ping()
-
-	if err != nil {
-		log.Fatal("Cannot ping DB ! ", err)
-	}
-
-	err = db.Close()
-
-	if err != nil {
-		log.Fatal("Cannot close DB connection! ", err)
-	}
-
-	log.Trace("Successfully connected to DB")
 }
