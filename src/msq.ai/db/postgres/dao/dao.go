@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"github.com/vishalkuo/bimap"
+	dic "msq.ai/db/postgres/dictionaries"
 )
 
 const loadExchangesSql = "SELECT id, name FROM exchange"
@@ -13,27 +14,68 @@ const loadTimeInForceSql = "SELECT id, type FROM time_in_force"
 const loadExecutionTypesSql = "SELECT id, type FROM execution_type"
 const loadExecutionStatusSql = "SELECT id, value FROM execution_status"
 
-func LoadExchanges(db *sql.DB) (*bimap.BiMap, error) {
+func LoadDictionaries(db *sql.DB) (*dic.Dictionaries, error) {
+
+	exchanges, err := loadExchanges(db)
+
+	if err != nil {
+		return nil, err
+	}
+
+	directions, err := loadDirections(db)
+
+	if err != nil {
+		return nil, err
+	}
+
+	orderTypes, err := loadOrderTypes(db)
+
+	if err != nil {
+		return nil, err
+	}
+
+	timeInForce, err := loadTimeInForce(db)
+
+	if err != nil {
+		return nil, err
+	}
+
+	executionTypes, err := loadExecutionTypes(db)
+
+	if err != nil {
+		return nil, err
+	}
+
+	executionStatuses, err := loadExecutionStatuses(db)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return dic.NewDictionaries(exchanges, directions, orderTypes, timeInForce, executionTypes, executionStatuses), nil
+}
+
+func loadExchanges(db *sql.DB) (*bimap.BiMap, error) {
 	return loadDictionary(db, loadExchangesSql)
 }
 
-func LoadDirections(db *sql.DB) (*bimap.BiMap, error) {
+func loadDirections(db *sql.DB) (*bimap.BiMap, error) {
 	return loadDictionary(db, loadDirectionsSql)
 }
 
-func LoadOrderTypes(db *sql.DB) (*bimap.BiMap, error) {
+func loadOrderTypes(db *sql.DB) (*bimap.BiMap, error) {
 	return loadDictionary(db, loadOrderTypesSql)
 }
 
-func LoadTimeInForce(db *sql.DB) (*bimap.BiMap, error) {
+func loadTimeInForce(db *sql.DB) (*bimap.BiMap, error) {
 	return loadDictionary(db, loadTimeInForceSql)
 }
 
-func LoadExecutionTypes(db *sql.DB) (*bimap.BiMap, error) {
+func loadExecutionTypes(db *sql.DB) (*bimap.BiMap, error) {
 	return loadDictionary(db, loadExecutionTypesSql)
 }
 
-func LoadExecutionStatuses(db *sql.DB) (*bimap.BiMap, error) {
+func loadExecutionStatuses(db *sql.DB) (*bimap.BiMap, error) {
 	return loadDictionary(db, loadExecutionStatusSql)
 }
 

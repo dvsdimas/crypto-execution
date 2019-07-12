@@ -57,57 +57,23 @@ func main() {
 
 	db, err := pgh.GetDbByUrl(url)
 
-	biMap, err := dao.LoadExchanges(db)
-
 	if err != nil {
-		log.Fatal("LEE !", err)
+		log.Fatal("Cannot connect to DB with URL ["+url+"] ", err)
 	}
 
-	log.Info(biMap)
+	//-------------------------------------- load dictionaries from DB -------------------------------------------------
 
-	biMap, err = dao.LoadDirections(db)
-
-	if err != nil {
-		log.Fatal("LEE !", err)
-	}
-
-	log.Info(biMap)
-
-	biMap, err = dao.LoadOrderTypes(db)
+	dictionaries, err := dao.LoadDictionaries(db)
 
 	if err != nil {
-		log.Fatal("LEE !", err)
+		log.Fatal("Cannot connect to DB with URL ["+url+"] ", err)
 	}
 
-	log.Info(biMap)
+	log.Trace(dictionaries)
 
-	biMap, err = dao.LoadTimeInForce(db)
-
-	if err != nil {
-		log.Fatal("LEE !", err)
-	}
-
-	log.Info(biMap)
-
-	biMap, err = dao.LoadExecutionTypes(db)
-
-	if err != nil {
-		log.Fatal("LEE !", err)
-	}
-
-	log.Info(biMap)
-
-	biMap, err = dao.LoadExecutionStatuses(db)
-
-	if err != nil {
-		log.Fatal("LEE !", err)
-	}
-
-	log.Info(biMap)
+	// TODO check size of the DB to start in DO_NOTHING mode :)
 
 	pgh.CloseDb(db)
-
-	// TODO load dictionaries from DB
 
 	//------------------------------------------------------------------------------------------------------------------
 
