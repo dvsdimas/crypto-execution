@@ -5,6 +5,7 @@ import (
 	prop "github.com/magiconair/properties"
 	log "github.com/sirupsen/logrus"
 	"msq.ai/constants"
+	"msq.ai/db/postgres/dao"
 	pgh "msq.ai/db/postgres/helper"
 	"os"
 )
@@ -55,6 +56,54 @@ func main() {
 	//------------------------------------------------------------------------------------------------------------------
 
 	db, err := pgh.GetDbByUrl(url)
+
+	biMap, err := dao.LoadExchanges(db)
+
+	if err != nil {
+		log.Fatal("LEE !", err)
+	}
+
+	log.Info(biMap)
+
+	biMap, err = dao.LoadDirections(db)
+
+	if err != nil {
+		log.Fatal("LEE !", err)
+	}
+
+	log.Info(biMap)
+
+	biMap, err = dao.LoadOrderTypes(db)
+
+	if err != nil {
+		log.Fatal("LEE !", err)
+	}
+
+	log.Info(biMap)
+
+	biMap, err = dao.LoadTimeInForce(db)
+
+	if err != nil {
+		log.Fatal("LEE !", err)
+	}
+
+	log.Info(biMap)
+
+	biMap, err = dao.LoadExecutionTypes(db)
+
+	if err != nil {
+		log.Fatal("LEE !", err)
+	}
+
+	log.Info(biMap)
+
+	biMap, err = dao.LoadExecutionStatuses(db)
+
+	if err != nil {
+		log.Fatal("LEE !", err)
+	}
+
+	log.Info(biMap)
 
 	pgh.CloseDb(db)
 
