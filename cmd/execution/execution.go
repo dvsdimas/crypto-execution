@@ -47,14 +47,6 @@ func main() {
 
 	url := properties.MustGet(constants.PostgresUrlPropertyName)
 
-	err = pgh.CheckDbUrl(url)
-
-	if err != nil {
-		log.Fatal("Cannot connect to DB with URL ["+url+"] ", err)
-	}
-
-	//------------------------------------------------------------------------------------------------------------------
-
 	db, err := pgh.GetDbByUrl(url)
 
 	if err != nil {
