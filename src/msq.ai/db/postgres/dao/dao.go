@@ -6,11 +6,11 @@ import (
 	"github.com/vishalkuo/bimap"
 )
 
-const loadExchangesSql = "SELECT id, name  FROM exchange"
+const loadExchangesSql = "SELECT id, name FROM exchange"
 const loadDirectionsSql = "SELECT id, value FROM direction"
-const loadOrderTypesSql = "SELECT id, type  FROM order_type"
-const loadTimeInForceSql = "SELECT id, type  FROM time_in_force"
-const loadExecutionTypesSql = "SELECT id, type  FROM execution_type"
+const loadOrderTypesSql = "SELECT id, type FROM order_type"
+const loadTimeInForceSql = "SELECT id, type FROM time_in_force"
+const loadExecutionTypesSql = "SELECT id, type FROM execution_type"
 const loadExecutionStatusSql = "SELECT id, value FROM execution_status"
 
 func LoadExchanges(db *sql.DB) (*bimap.BiMap, error) {
@@ -51,8 +51,6 @@ func loadDictionary(db *sql.DB, sqlValue string) (*bimap.BiMap, error) {
 		return nil, err
 	}
 
-	defer rows.Close()
-
 	var (
 		id   int16
 		name string
@@ -72,6 +70,12 @@ func loadDictionary(db *sql.DB, sqlValue string) (*bimap.BiMap, error) {
 	}
 
 	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	err = rows.Close()
+
+	if err != nil {
 		return nil, err
 	}
 
