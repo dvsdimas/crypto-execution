@@ -24,6 +24,10 @@ func (d dictionary) GetIdByName(name string) int16 {
 
 	val, _ := d.bm.GetInverse(name)
 
+	if val == "" {
+		return -1
+	}
+
 	return val.(int16)
 }
 

@@ -7,7 +7,9 @@ import (
 	"msq.ai/constants"
 	"msq.ai/db/postgres/dao"
 	pgh "msq.ai/db/postgres/helper"
+	"msq.ai/rest/gin"
 	"os"
+	"time"
 )
 
 const propertiesFileName string = "execution.properties"
@@ -25,22 +27,24 @@ func init() {
 
 func main() {
 
-	log.Info("Execution is going to start")
+	ctxLog := log.WithFields(log.Fields{"id": "Execution"})
+
+	ctxLog.Info("Execution is going to start")
 
 	pwd, err := os.Getwd()
 
 	if err != nil {
-		log.Fatal("Getwd error", err)
+		ctxLog.Fatal("Getwd error", err)
 	}
 
-	log.Trace("Current folder is [" + pwd + "]")
+	ctxLog.Trace("Current folder is [" + pwd + "]")
 
 	//------------------------------------------------------------------------------------------------------------------
 
 	properties := prop.MustLoadFile(propertiesFileName, prop.UTF8)
 
 	for k, v := range properties.Map() {
-		log.Debug("key[" + k + "] value[" + v + "]")
+		ctxLog.Debug("key[" + k + "] value[" + v + "]")
 	}
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -50,7 +54,7 @@ func main() {
 	db, err := pgh.GetDbByUrl(url)
 
 	if err != nil {
-		log.Fatal("Cannot connect to DB with URL ["+url+"] ", err)
+		ctxLog.Fatal("Cannot connect to DB with URL ["+url+"] ", err)
 	}
 
 	//-------------------------------------- load dictionaries from DB -------------------------------------------------
@@ -58,10 +62,10 @@ func main() {
 	dictionaries, err := dao.LoadDictionaries(db)
 
 	if err != nil {
-		log.Fatal("Cannot connect to DB with URL ["+url+"] ", err)
+		ctxLog.Fatal("Cannot load Dictionaries from DB with URL ["+url+"] ", err)
 	}
 
-	log.Trace(dictionaries)
+	ctxLog.Trace(dictionaries)
 
 	// TODO check size of the DB to start in DO_NOTHING mode :)
 
@@ -79,7 +83,17 @@ func main() {
 
 	// TODO start REST provider
 
+	//[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+	//- using env:	export GIN_MODE=release
+	//- using code:	gin.SetMode(gin.ReleaseMode)
+
+	gin.RunGinRestService(url, dictionaries)
+
 	//------------------------------------------------------------------------------------------------------------------
 
 	// TODO perform some statistic calculation and print, send , something, ..... XZ
+
+	for {
+		time.Sleep(1 * time.Second)
+	}
 }

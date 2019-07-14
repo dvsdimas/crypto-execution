@@ -3,6 +3,7 @@ package dao
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"github.com/vishalkuo/bimap"
 	dic "msq.ai/db/postgres/dictionaries"
 )
@@ -14,6 +15,22 @@ const loadTimeInForceSql = "SELECT id, type FROM time_in_force"
 const loadExecutionTypesSql = "SELECT id, type FROM execution_type"
 const loadExecutionStatusSql = "SELECT id, value FROM execution_status"
 
+func InsertCommand(db *sql.DB,
+	exchangeId int16,
+	instrument string,
+	directionId int16,
+	orderTypeId int16,
+	limitPrice float32,
+	amount float32,
+	executionTypeId int16,
+	refPositionIdVal string,
+	accountId int64) (int64, error) {
+
+	// TODO
+
+	return 1, nil
+}
+
 func LoadDictionaries(db *sql.DB) (*dic.Dictionaries, error) {
 
 	exchanges, err := loadExchanges(db)
@@ -22,10 +39,18 @@ func LoadDictionaries(db *sql.DB) (*dic.Dictionaries, error) {
 		return nil, err
 	}
 
+	if exchanges.Size() == 0 {
+		return nil, errors.New("exchanges dictionary is empty")
+	}
+
 	directions, err := loadDirections(db)
 
 	if err != nil {
 		return nil, err
+	}
+
+	if directions.Size() == 0 {
+		return nil, errors.New("directions dictionary is empty")
 	}
 
 	orderTypes, err := loadOrderTypes(db)
@@ -34,10 +59,18 @@ func LoadDictionaries(db *sql.DB) (*dic.Dictionaries, error) {
 		return nil, err
 	}
 
+	if orderTypes.Size() == 0 {
+		return nil, errors.New("orderTypes dictionary is empty")
+	}
+
 	timeInForce, err := loadTimeInForce(db)
 
 	if err != nil {
 		return nil, err
+	}
+
+	if timeInForce.Size() == 0 {
+		return nil, errors.New("timeInForce dictionary is empty")
 	}
 
 	executionTypes, err := loadExecutionTypes(db)
@@ -46,10 +79,18 @@ func LoadDictionaries(db *sql.DB) (*dic.Dictionaries, error) {
 		return nil, err
 	}
 
+	if executionTypes.Size() == 0 {
+		return nil, errors.New("executionTypes dictionary is empty")
+	}
+
 	executionStatuses, err := loadExecutionStatuses(db)
 
 	if err != nil {
 		return nil, err
+	}
+
+	if executionStatuses.Size() == 0 {
+		return nil, errors.New("executionStatuses dictionary is empty")
 	}
 
 	return dic.NewDictionaries(exchanges, directions, orderTypes, timeInForce, executionTypes, executionStatuses), nil
