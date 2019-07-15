@@ -106,7 +106,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 			limitPrice, err = strconv.ParseFloat(limitPriceVal, 64)
 
 			if err != nil {
-				log.Error("Cannot parse limit_price ["+limitPriceVal+"]", err)
+				ctxLog.Error("Cannot parse limit_price ["+limitPriceVal+"]", err)
 
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 					"error": "Wrong 'limit_price' parameter [" + limitPriceVal + "]",
@@ -133,7 +133,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 		amount, err := strconv.ParseFloat(amountVal, 64)
 
 		if err != nil {
-			log.Error("Cannot parse amount ["+amountVal+"]", err)
+			ctxLog.Error("Cannot parse amount ["+amountVal+"]", err)
 
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Wrong 'amount' parameter [" + amountVal + "]",
@@ -207,12 +207,18 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 	router := gin.Default()
 
+	var handlerPUT = func(c *gin.Context) {
+
+		names := c.PostFormMap("names")
+
+		ctxLog.Info(names)
+	}
+
 	v1 := router.Group("/execution/v1/command")
 	{
 		//v1.POST("/", createTodo)
-		//v1.GET("/:id", fetchSingleTodo)
-		//v1.PUT("/:id", updateTodo)
-		//v1.DELETE("/:id", deleteTodo)
+
+		v1.PUT("/", handlerPUT)
 
 		v1.GET("/", handlerGET) // TODO replace with POST
 	}
