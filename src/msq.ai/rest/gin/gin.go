@@ -25,7 +25,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 		ctxLog.Fatal("Cannot connect to DB with URL ["+dburl+"] ", err)
 	}
 
-	log.Trace(db)
+	statusCreatedId := dictionaries.ExecutionStatuses().GetIdByName(con.ExecutionStatusCreatedName)
 
 	// ?exchange=BINANCE&instrument=EUR/USD&direction=BUY&order_type=MARKET&limit_price=1.1&amount=1.0&execution_type=OPEN&ref_position_id=12345&account_id=43542352
 
@@ -192,8 +192,8 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		id, err := dao.InsertCommand(dictionaries, db, exchangeId, instrumentVal, directionId, orderTypeId, float32(limitPrice),
-			float32(amount), executionTypeId, refPositionIdVal, accountId)
+		id, err := dao.InsertCommand(db, exchangeId, instrumentVal, directionId, orderTypeId, float32(limitPrice), float32(amount),
+			statusCreatedId, executionTypeId, refPositionIdVal, accountId)
 
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
