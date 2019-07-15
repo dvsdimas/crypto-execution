@@ -19,7 +19,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 	ctxLog.Info("GinRestService is going to start")
 
-	db, err := pgh.GetDbByUrl(dburl)
+	db, err := pgh.GetDbByUrl(dburl) // TODO configure DB connection pool !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 	if err != nil {
 		ctxLog.Fatal("Cannot connect to DB with URL ["+dburl+"] ", err)
@@ -33,11 +33,11 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 		exchangeVal := strings.ToUpper(c.Query("exchange"))
 
-		ctxLog.Trace("exchange [" + exchangeVal + "]")
+		ctxLog.Trace("exchange [", exchangeVal, "]")
 
 		exchangeId := dictionaries.Exchanges().GetIdByName(exchangeVal)
 
-		ctxLog.Trace("exchangeId [%d]", exchangeId)
+		ctxLog.Trace("exchangeId [", exchangeId, "]")
 
 		if exchangeId < 0 {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -50,7 +50,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 		instrumentVal := strings.ToUpper(c.Query("instrument"))
 
-		ctxLog.Trace("instrument [" + instrumentVal + "]")
+		ctxLog.Trace("instrument [", instrumentVal, "]")
 
 		if len(instrumentVal) <= 1 {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -63,11 +63,11 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 		directionVal := strings.ToUpper(c.Query("direction"))
 
-		ctxLog.Trace("direction [" + directionVal + "]")
+		ctxLog.Trace("direction [", directionVal, "]")
 
 		directionId := dictionaries.Directions().GetIdByName(directionVal)
 
-		ctxLog.Trace("directionId [%d]", directionId)
+		ctxLog.Trace("directionId [", directionId, "]")
 
 		if directionId < 0 {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -80,11 +80,11 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 		orderTypeVal := strings.ToUpper(c.Query("order_type"))
 
-		ctxLog.Trace("order_type [" + orderTypeVal + "]")
+		ctxLog.Trace("order_type [", orderTypeVal, "]")
 
 		orderTypeId := dictionaries.OrderTypes().GetIdByName(orderTypeVal)
 
-		ctxLog.Trace("orderTypeId [%d]", orderTypeId)
+		ctxLog.Trace("orderTypeId [", orderTypeId, "]")
 
 		if orderTypeId < 0 {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -97,11 +97,11 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 		limitPriceVal := c.Query("limit_price")
 
-		ctxLog.Trace("limit_price [" + limitPriceVal + "]")
+		ctxLog.Trace("limit_price [", limitPriceVal, "]")
 
 		var limitPrice float64 = -1
 
-		if orderTypeId == dictionaries.OrderTypes().GetIdByName(con.ORDER_TYPE_LIMIT_NAME) {
+		if orderTypeId == dictionaries.OrderTypes().GetIdByName(con.OrderTypeLimitName) {
 
 			limitPrice, err = strconv.ParseFloat(limitPriceVal, 32)
 
@@ -114,7 +114,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 				return
 			}
 
-			ctxLog.Trace("limit_price [%f]", limitPrice)
+			ctxLog.Trace("limit_price [", limitPrice, "]")
 
 			if math.IsZero(limitPrice) || limitPrice < 0 {
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -128,7 +128,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 		amountVal := c.Query("amount")
 
-		ctxLog.Trace("amount [" + amountVal + "]")
+		ctxLog.Trace("amount [", amountVal, "]")
 
 		amount, err := strconv.ParseFloat(amountVal, 32)
 
@@ -141,7 +141,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 			return
 		}
 
-		ctxLog.Trace("amount [%f]", amount)
+		ctxLog.Trace("amount [", amount, "]")
 
 		if math.IsZero(amount) || amount < 0 {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -154,11 +154,11 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 		executionTypeVal := strings.ToUpper(c.Query("execution_type"))
 
-		ctxLog.Trace("execution_type [" + executionTypeVal + "]")
+		ctxLog.Trace("execution_type [", executionTypeVal, "]")
 
 		executionTypeId := dictionaries.ExecutionTypes().GetIdByName(executionTypeVal)
 
-		ctxLog.Trace("executionTypeId [%d]", executionTypeId)
+		ctxLog.Trace("executionTypeId [", executionTypeId, "]")
 
 		if executionTypeId < 0 {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -171,13 +171,13 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 		refPositionIdVal := c.Query("ref_position_id")
 
-		ctxLog.Trace("ref_position_id [" + refPositionIdVal + "]")
+		ctxLog.Trace("ref_position_id [", refPositionIdVal, "]")
 
 		//--------------------------------------------------------------------------------------------------------------
 
 		accountIdVal := c.Query("account_id")
 
-		ctxLog.Trace("account_id [" + accountIdVal + "]")
+		ctxLog.Trace("account_id [", accountIdVal, "]")
 
 		accountId, err := strconv.ParseInt(accountIdVal, 10, 64)
 
@@ -188,13 +188,12 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 			return
 		}
 
-		ctxLog.Trace("accountId [%d]", accountId)
+		ctxLog.Trace("accountId [", accountId, "]")
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		// TODO insert into DB
-
-		id, err := dao.InsertCommand(db, exchangeId, instrumentVal, directionId, orderTypeId, float32(limitPrice), float32(amount), executionTypeId, refPositionIdVal, accountId)
+		id, err := dao.InsertCommand(dictionaries, db, exchangeId, instrumentVal, directionId, orderTypeId, float32(limitPrice),
+			float32(amount), executionTypeId, refPositionIdVal, accountId)
 
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
@@ -203,9 +202,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
-			"id": id,
-		})
+		c.JSON(http.StatusOK, gin.H{"id": id})
 	}
 
 	router := gin.Default()

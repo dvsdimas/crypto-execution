@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/vishalkuo/bimap"
+	con "msq.ai/constants"
 	dic "msq.ai/db/postgres/dictionaries"
 )
 
@@ -15,20 +16,55 @@ const loadTimeInForceSql = "SELECT id, type FROM time_in_force"
 const loadExecutionTypesSql = "SELECT id, type FROM execution_type"
 const loadExecutionStatusSql = "SELECT id, value FROM execution_status"
 
-func InsertCommand(db *sql.DB,
-	exchangeId int16,
-	instrument string,
-	directionId int16,
-	orderTypeId int16,
-	limitPrice float32,
-	amount float32,
-	executionTypeId int16,
-	refPositionIdVal string,
-	accountId int64) (int64, error) {
+const insertCommandSql = "INSERT INTO execution (exchange_id, instrument_name, direction_id, order_type_id, limit_price," +
+	"amount, status_id, execution_type_id, execute_till_time, ref_position_id, update_timestamp, account_id) " +
+	"VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, $9, CURRENT_TIMESTAMP, $10) RETURNING id"
 
-	// TODO
+func InsertCommand(dictionaries *dic.Dictionaries, db *sql.DB, exchangeId int16, instrument string, directionId int16,
+	orderTypeId int16, limitPrice float32, amount float32, executionTypeId int16, refPositionIdVal string, accountId int64) (int64, error) {
 
-	return 1, nil
+	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
+
+	if err != nil {
+		return -1, err
+	}
+
+	stmt, err := tx.Prepare(insertCommandSql)
+
+	if err != nil {
+		_ = tx.Rollback()
+		return -1, err
+	}
+
+	statusCreatedId := dictionaries.ExecutionStatuses().GetIdByName(con.ExecutionStatusCreatedName)
+
+	row := stmt.QueryRow(exchangeId, instrument, directionId, orderTypeId, limitPrice, amount, statusCreatedId, executionTypeId, refPositionIdVal, accountId)
+
+	var id int64
+
+	err = row.Scan(&id)
+
+	if err != nil {
+		_ = stmt.Close()
+		_ = tx.Rollback()
+
+		return -1, err
+	}
+
+	err = stmt.Close()
+
+	if err != nil {
+		_ = tx.Rollback()
+		return -1, err
+	}
+
+	err = tx.Commit()
+
+	if err != nil {
+		return -1, err
+	}
+
+	return id, nil
 }
 
 func LoadDictionaries(db *sql.DB) (*dic.Dictionaries, error) {
@@ -130,7 +166,7 @@ func loadDictionary(db *sql.DB, sqlValue string) (*bimap.BiMap, error) {
 
 	rows, err := tx.Query(sqlValue)
 
-	if err != nil {
+	if err != nil { // TODO rollback !!!!!!!!!!!!!!!!!
 		return nil, err
 	}
 
