@@ -103,7 +103,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 		if orderTypeId == dictionaries.OrderTypes().GetIdByName(con.OrderTypeLimitName) {
 
-			limitPrice, err = strconv.ParseFloat(limitPriceVal, 32)
+			limitPrice, err = strconv.ParseFloat(limitPriceVal, 64)
 
 			if err != nil {
 				log.Error("Cannot parse limit_price ["+limitPriceVal+"]", err)
@@ -130,7 +130,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 		ctxLog.Trace("amount [", amountVal, "]")
 
-		amount, err := strconv.ParseFloat(amountVal, 32)
+		amount, err := strconv.ParseFloat(amountVal, 64)
 
 		if err != nil {
 			log.Error("Cannot parse amount ["+amountVal+"]", err)
@@ -192,8 +192,8 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 		//--------------------------------------------------------------------------------------------------------------
 
-		id, err := dao.InsertCommand(db, exchangeId, instrumentVal, directionId, orderTypeId, float32(limitPrice), float32(amount),
-			statusCreatedId, executionTypeId, refPositionIdVal, accountId)
+		id, err := dao.InsertCommand(db, exchangeId, instrumentVal, directionId, orderTypeId, limitPrice, amount, statusCreatedId,
+			executionTypeId, refPositionIdVal, accountId)
 
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{

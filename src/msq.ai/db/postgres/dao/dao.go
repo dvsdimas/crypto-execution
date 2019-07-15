@@ -19,8 +19,26 @@ const insertCommandSql = "INSERT INTO execution (exchange_id, instrument_name, d
 	"amount, status_id, execution_type_id, execute_till_time, ref_position_id, update_timestamp, account_id) " +
 	"VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, $9, CURRENT_TIMESTAMP, $10) RETURNING id"
 
-func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId int16, orderTypeId int16, limitPrice float32,
-	amount float32, statusId int16, executionTypeId int16, refPositionIdVal string, accountId int64) (int64, error) {
+func nullString(s string) sql.NullString {
+
+	if len(s) == 0 {
+		return sql.NullString{}
+	}
+
+	return sql.NullString{String: s, Valid: true}
+}
+
+func nullLimitPrice(limitPrice float64) sql.NullFloat64 {
+
+	if limitPrice < 0 {
+		return sql.NullFloat64{}
+	}
+
+	return sql.NullFloat64{Float64: limitPrice, Valid: true}
+}
+
+func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId int16, orderTypeId int16, limitPrice float64,
+	amount float64, statusId int16, executionTypeId int16, refPositionIdVal string, accountId int64) (int64, error) {
 
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
 
@@ -35,7 +53,8 @@ func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId 
 		return -1, err
 	}
 
-	row := stmt.QueryRow(exchangeId, instrument, directionId, orderTypeId, limitPrice, amount, statusId, executionTypeId, refPositionIdVal, accountId)
+	row := stmt.QueryRow(exchangeId, instrument, directionId, orderTypeId, nullLimitPrice(limitPrice), amount, statusId,
+		executionTypeId, nullString(refPositionIdVal), accountId)
 
 	var id int64
 
