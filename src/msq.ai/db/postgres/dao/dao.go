@@ -20,6 +20,8 @@ const insertCommandSql = "INSERT INTO execution (exchange_id, instrument_name, d
 	"amount, status_id, execution_type_id, execute_till_time, ref_position_id, update_timestamp, account_id) " +
 	"VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id"
 
+const insertCommandHistorySql = "INSERT INTO execution_history (execution_id, status_from_id, status_to_id, timestamp) VALUES ($1, $2, $3, $4)"
+
 func nullString(s string) sql.NullString {
 
 	if len(s) == 0 {
@@ -54,8 +56,6 @@ func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId 
 		return -1, err
 	}
 
-	// TODO update history
-
 	row := stmt.QueryRow(exchangeId, instrument, directionId, orderTypeId, nullLimitPrice(limitPrice), amount, statusId,
 		executionTypeId, future, nullString(refPositionIdVal), now, accountId)
 
@@ -66,13 +66,27 @@ func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId 
 	if err != nil {
 		_ = stmt.Close()
 		_ = tx.Rollback()
-
 		return -1, err
 	}
 
 	err = stmt.Close()
 
 	if err != nil {
+		_ = tx.Rollback()
+		return -1, err
+	}
+
+	stmt, err = tx.Prepare(insertCommandHistorySql)
+
+	if err != nil {
+		_ = tx.Rollback()
+		return -1, err
+	}
+
+	_, err = stmt.Exec(id, statusId, statusId, now)
+
+	if err != nil {
+		_ = stmt.Close()
 		_ = tx.Rollback()
 		return -1, err
 	}
