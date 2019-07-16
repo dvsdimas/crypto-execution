@@ -22,6 +22,13 @@ const insertCommandSql = "INSERT INTO execution (exchange_id, instrument_name, d
 
 const insertCommandHistorySql = "INSERT INTO execution_history (execution_id, status_from_id, status_to_id, timestamp) VALUES ($1, $2, $3, $4)"
 
+func LoadCommandById(db *sql.DB, id int64) error {
+
+	// TODO
+
+	return nil
+}
+
 func nullString(s string) sql.NullString {
 
 	if len(s) == 0 {
