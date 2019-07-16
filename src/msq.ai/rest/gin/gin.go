@@ -14,9 +14,11 @@ import (
 	"time"
 )
 
-func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
+func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExecution int) {
 
 	ctxLog := log.WithFields(log.Fields{"id": "GinRestService"})
+
+	delta := time.Duration(timeForExecution) * time.Second
 
 	ctxLog.Info("GinRestService is going to start")
 
@@ -199,8 +201,10 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 		now := time.Now()
 
+		future := now.Add(delta)
+
 		id, err := dao.InsertCommand(db, exchangeId, instrumentVal, directionId, orderTypeId, limitPrice, amount, statusCreatedId,
-			executionTypeId, refPositionIdVal, now, accountId)
+			executionTypeId, future, refPositionIdVal, now, accountId)
 
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
