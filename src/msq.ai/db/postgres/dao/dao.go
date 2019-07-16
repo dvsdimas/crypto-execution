@@ -20,11 +20,69 @@ const insertCommandSql = "INSERT INTO execution (exchange_id, instrument_name, d
 	"amount, status_id, execution_type_id, execute_till_time, ref_position_id, update_timestamp, account_id) " +
 	"VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id"
 
-const insertCommandHistorySql = "INSERT INTO execution_history (execution_id, status_from_id, status_to_id, timestamp) VALUES ($1, $2, $3, $4)"
+const insertCommandHistorySql = "INSERT INTO execution_history (execution_id, status_from_id, status_to_id, timestamp) " +
+	"VALUES ($1, $2, $3, $4)"
+
+const loadCommandByIdSql = "SELECT exchange_id, instrument_name, direction_id, order_type_id, limit_price, amount, " +
+	"status_id, connector_id, execution_type_id,execute_till_time, ref_position_id, time_in_force_id, update_timestamp, account_id, " +
+	"description FROM execution WHERE id = $1"
 
 func LoadCommandById(db *sql.DB, id int64) error {
 
-	// TODO
+	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: true})
+
+	if err != nil {
+		return err
+	}
+
+	stmt, err := tx.Prepare(loadCommandByIdSql)
+
+	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	row := stmt.QueryRow(id)
+
+	var (
+		exchange_id       int16
+		instrument_name   string
+		direction_id      int16
+		order_type_id     int16
+		limit_price       sql.NullFloat64
+		amount            float64
+		status_id         int16
+		connector_id      sql.NullInt64
+		execution_type_id int16
+		execute_till_time time.Time
+		ref_position_id   sql.NullString
+		time_in_force_id  int16
+		update_timestamp  time.Time
+		account_id        int64
+		description       sql.NullString
+	)
+
+	err = row.Scan(&exchange_id, &instrument_name, &direction_id, &order_type_id, &limit_price, &amount, &status_id, &connector_id,
+		&execution_type_id, &execute_till_time, &ref_position_id, &time_in_force_id, &update_timestamp, &account_id, &description)
+
+	if err != nil {
+		_ = stmt.Close()
+		_ = tx.Rollback()
+		return err
+	}
+
+	err = stmt.Close()
+
+	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	err = tx.Commit()
+
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -32,7 +90,7 @@ func LoadCommandById(db *sql.DB, id int64) error {
 func nullString(s string) sql.NullString {
 
 	if len(s) == 0 {
-		return sql.NullString{}
+		return sql.NullString{Valid: false}
 	}
 
 	return sql.NullString{String: s, Valid: true}
@@ -41,7 +99,7 @@ func nullString(s string) sql.NullString {
 func nullLimitPrice(limitPrice float64) sql.NullFloat64 {
 
 	if limitPrice < 0 {
-		return sql.NullFloat64{}
+		return sql.NullFloat64{Valid: false}
 	}
 
 	return sql.NullFloat64{Float64: limitPrice, Valid: true}
