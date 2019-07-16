@@ -53,6 +53,9 @@ func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId 
 		return -1, err
 	}
 
+	// TODO execute_till_time
+	// TODO update history
+
 	row := stmt.QueryRow(exchangeId, instrument, directionId, orderTypeId, nullLimitPrice(limitPrice), amount, statusId,
 		executionTypeId, nullString(refPositionIdVal), accountId)
 

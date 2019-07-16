@@ -19,11 +19,14 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 	ctxLog.Info("GinRestService is going to start")
 
-	db, err := pgh.GetDbByUrl(dburl) // TODO configure DB connection pool !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	db, err := pgh.GetDbByUrl(dburl)
 
 	if err != nil {
 		ctxLog.Fatal("Cannot connect to DB with URL ["+dburl+"] ", err)
 	}
+
+	db.SetMaxIdleConns(10)
+	db.SetMaxOpenConns(30)
 
 	statusCreatedId := dictionaries.ExecutionStatuses().GetIdByName(con.ExecutionStatusCreatedName)
 
@@ -207,20 +210,20 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 	router := gin.Default()
 
-	var handlerPUT = func(c *gin.Context) {
-
-		names := c.PostFormMap("names")
-
-		ctxLog.Info(names)
-	}
+	//var handlerPUT = func(c *gin.Context) {
+	//
+	//	names := c.PostFormMap("names")
+	//
+	//	ctxLog.Info(names)
+	//}
 
 	v1 := router.Group("/execution/v1/command")
 	{
 		//v1.POST("/", createTodo)
 
-		v1.PUT("/", handlerPUT)
+		//v1.PUT("/", handlerPUT)
 
-		v1.GET("/", handlerGET) // TODO replace with POST
+		v1.GET("/", handlerGET) // TODO replace with PUT
 	}
 
 	go func() {

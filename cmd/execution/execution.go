@@ -67,8 +67,6 @@ func main() {
 
 	ctxLog.Trace(dictionaries)
 
-	// TODO check size of the DB to start in DO_NOTHING mode :)
-
 	pgh.CloseDb(db)
 
 	//------------------------------------------------------------------------------------------------------------------
