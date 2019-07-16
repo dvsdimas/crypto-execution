@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
@@ -27,6 +28,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 	db.SetMaxIdleConns(10)
 	db.SetMaxOpenConns(30)
+	db.SetConnMaxLifetime(time.Hour)
 
 	statusCreatedId := dictionaries.ExecutionStatuses().GetIdByName(con.ExecutionStatusCreatedName)
 
