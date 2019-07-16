@@ -197,8 +197,10 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries) {
 
 		//--------------------------------------------------------------------------------------------------------------
 
+		now := time.Now()
+
 		id, err := dao.InsertCommand(db, exchangeId, instrumentVal, directionId, orderTypeId, limitPrice, amount, statusCreatedId,
-			executionTypeId, refPositionIdVal, accountId)
+			executionTypeId, refPositionIdVal, now, accountId)
 
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{

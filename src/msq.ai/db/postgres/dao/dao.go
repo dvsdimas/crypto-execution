@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/vishalkuo/bimap"
 	dic "msq.ai/db/postgres/dictionaries"
+	"time"
 )
 
 const loadExchangesSql = "SELECT id, name FROM exchange"
@@ -17,7 +18,7 @@ const loadExecutionStatusSql = "SELECT id, value FROM execution_status"
 
 const insertCommandSql = "INSERT INTO execution (exchange_id, instrument_name, direction_id, order_type_id, limit_price," +
 	"amount, status_id, execution_type_id, execute_till_time, ref_position_id, update_timestamp, account_id) " +
-	"VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, $9, CURRENT_TIMESTAMP, $10) RETURNING id"
+	"VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, $9, $10, $11) RETURNING id"
 
 func nullString(s string) sql.NullString {
 
@@ -38,7 +39,7 @@ func nullLimitPrice(limitPrice float64) sql.NullFloat64 {
 }
 
 func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId int16, orderTypeId int16, limitPrice float64,
-	amount float64, statusId int16, executionTypeId int16, refPositionIdVal string, accountId int64) (int64, error) {
+	amount float64, statusId int16, executionTypeId int16, refPositionIdVal string, now time.Time, accountId int64) (int64, error) {
 
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
 
@@ -57,7 +58,7 @@ func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId 
 	// TODO update history
 
 	row := stmt.QueryRow(exchangeId, instrument, directionId, orderTypeId, nullLimitPrice(limitPrice), amount, statusId,
-		executionTypeId, nullString(refPositionIdVal), accountId)
+		executionTypeId, nullString(refPositionIdVal), now, accountId)
 
 	var id int64
 
