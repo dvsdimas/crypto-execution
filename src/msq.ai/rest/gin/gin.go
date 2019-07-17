@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	con "msq.ai/constants"
+	comd "msq.ai/data/cmd"
 	"msq.ai/db/postgres/dao"
 	dic "msq.ai/db/postgres/dictionaries"
 	pgh "msq.ai/db/postgres/helper"
@@ -56,7 +57,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 		ctxLog.Trace("id [", id, "]")
 
-		err = dao.LoadCommandById(db, id)
+		command, err := dao.LoadCommandById(db, id)
 
 		if err != nil {
 
@@ -68,7 +69,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"id": id})
+		c.JSON(http.StatusOK, comd.ToRaw(command, dictionaries))
 	}
 
 	router := gin.Default()

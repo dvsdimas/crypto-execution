@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/vishalkuo/bimap"
+	"msq.ai/data/cmd"
 	dic "msq.ai/db/postgres/dictionaries"
 	"time"
 )
@@ -23,68 +24,84 @@ const insertCommandSql = "INSERT INTO execution (exchange_id, instrument_name, d
 const insertCommandHistorySql = "INSERT INTO execution_history (execution_id, status_from_id, status_to_id, timestamp) " +
 	"VALUES ($1, $2, $3, $4)"
 
-const loadCommandByIdSql = "SELECT exchange_id, instrument_name, direction_id, order_type_id, limit_price, amount, " +
+const loadCommandByIdSql = "SELECT id, exchange_id, instrument_name, direction_id, order_type_id, limit_price, amount, " +
 	"status_id, connector_id, execution_type_id,execute_till_time, ref_position_id, time_in_force_id, update_timestamp, account_id, " +
 	"description FROM execution WHERE id = $1"
 
-func LoadCommandById(db *sql.DB, id int64) error {
+func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) {
 
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: true})
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	stmt, err := tx.Prepare(loadCommandByIdSql)
 
 	if err != nil {
 		_ = tx.Rollback()
-		return err
+		return nil, err
 	}
 
 	row := stmt.QueryRow(id)
 
 	var (
-		exchange_id       int16
-		instrument_name   string
-		direction_id      int16
-		order_type_id     int16
-		limit_price       sql.NullFloat64
-		amount            float64
-		status_id         int16
-		connector_id      sql.NullInt64
-		execution_type_id int16
-		execute_till_time time.Time
-		ref_position_id   sql.NullString
-		time_in_force_id  int16
-		update_timestamp  time.Time
-		account_id        int64
-		description       sql.NullString
+		limitPrice    sql.NullFloat64
+		connectorId   sql.NullInt64
+		refPositionId sql.NullString
+		description   sql.NullString
+
+		command cmd.Command
 	)
 
-	err = row.Scan(&exchange_id, &instrument_name, &direction_id, &order_type_id, &limit_price, &amount, &status_id, &connector_id,
-		&execution_type_id, &execute_till_time, &ref_position_id, &time_in_force_id, &update_timestamp, &account_id, &description)
+	err = row.Scan(&command.Id, &command.ExchangeId, &command.InstrumentName, &command.DirectionId, &command.OrderTypeId,
+		&limitPrice, &command.Amount, &command.StatusId, &connectorId, &command.ExecutionTypeId, &command.ExecuteTillTime,
+		&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &description)
+
+	if limitPrice.Valid {
+		command.LimitPrice = limitPrice.Float64
+	} else {
+		command.LimitPrice = -1
+	}
+
+	if connectorId.Valid {
+		command.ConnectorId = connectorId.Int64
+	} else {
+		command.ConnectorId = -1
+	}
+
+	if refPositionId.Valid {
+		command.RefPositionId = refPositionId.String
+	} else {
+		command.RefPositionId = ""
+	}
+
+	if description.Valid {
+		command.Description = description.String
+	} else {
+		command.Description = ""
+	}
 
 	if err != nil {
 		_ = stmt.Close()
 		_ = tx.Rollback()
-		return err
+		return nil, err
 	}
 
 	err = stmt.Close()
 
 	if err != nil {
 		_ = tx.Rollback()
-		return err
+		return nil, err
 	}
 
 	err = tx.Commit()
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return &command, nil
 }
 
 func nullString(s string) sql.NullString {
