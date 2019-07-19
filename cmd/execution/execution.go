@@ -65,8 +65,6 @@ func main() {
 		ctxLog.Fatal("Cannot load Dictionaries from DB with URL ["+url+"] ", err)
 	}
 
-	ctxLog.Trace(dictionaries)
-
 	pgh.CloseDb(db)
 
 	//------------------------------------------------------------------------------------------------------------------

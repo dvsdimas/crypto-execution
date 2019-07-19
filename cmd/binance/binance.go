@@ -7,6 +7,7 @@ import (
 	"msq.ai/constants"
 	"msq.ai/db/postgres/dao"
 	pgh "msq.ai/db/postgres/helper"
+	"msq.ai/exchange/binance"
 	"os"
 	"time"
 )
@@ -66,8 +67,6 @@ func main() {
 		ctxLog.Fatal("Cannot load Dictionaries from DB with URL ["+url+"] ", err)
 	}
 
-	ctxLog.Trace(dictionaries)
-
 	pgh.CloseDb(db)
 
 	//------------------------------------ start binance connector  ----------------------------------------------------
@@ -76,6 +75,8 @@ func main() {
 	secretKey := properties.MustGet(propertyBinanceSecretKeyName)
 
 	log.Trace(apiKey, secretKey)
+
+	binance.RunBinanceConnector(dictionaries, apiKey, secretKey)
 
 	// TODO
 
