@@ -4,10 +4,11 @@ import (
 	_ "github.com/lib/pq"
 	prop "github.com/magiconair/properties"
 	log "github.com/sirupsen/logrus"
+	"msq.ai/connectors/proto"
 	"msq.ai/constants"
 	"msq.ai/db/postgres/dao"
 	pgh "msq.ai/db/postgres/helper"
-	"msq.ai/exchange/binance"
+	"msq.ai/exchange/ecbinance"
 	"os"
 	"time"
 )
@@ -72,11 +73,21 @@ func main() {
 	//------------------------------------ start binance connector  ----------------------------------------------------
 
 	apiKey := properties.MustGet(propertyBinanceApiKeyName)
+
+	if len(apiKey) < 1 {
+		ctxLog.Fatal("apiKey is empty !")
+	}
+
 	secretKey := properties.MustGet(propertyBinanceSecretKeyName)
 
-	log.Trace(apiKey, secretKey)
+	if len(secretKey) < 1 {
+		ctxLog.Fatal("secretKey is empty !")
+	}
 
-	binance.RunBinanceConnector(dictionaries, apiKey, secretKey)
+	requests := make(chan *proto.ExecRequest)
+	responses := make(chan *proto.ExecResponse)
+
+	ecbinance.RunBinanceConnector(dictionaries, apiKey, secretKey, requests, responses)
 
 	// TODO
 
