@@ -12,6 +12,8 @@ import (
 )
 
 const propertiesFileName string = "binance.properties"
+const propertyBinanceApiKeyName string = "binance.apiKey"
+const propertyBinanceSecretKeyName string = "binance.secretKey"
 
 func init() {
 
@@ -69,6 +71,11 @@ func main() {
 	pgh.CloseDb(db)
 
 	//------------------------------------ start binance connector  ----------------------------------------------------
+
+	apiKey := properties.MustGet(propertyBinanceApiKeyName)
+	secretKey := properties.MustGet(propertyBinanceSecretKeyName)
+
+	log.Trace(apiKey, secretKey)
 
 	// TODO
 
