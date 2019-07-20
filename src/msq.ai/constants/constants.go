@@ -3,6 +3,7 @@ package constants
 const PostgresUrlPropertyName string = "postgres.url"
 const CommandTimeForExecutionSecondsPropertyName string = "command.time.for.execution.seconds"
 const ExchangeNamePropertyName string = "exchange.name"
+const ConnectorIdPropertyName string = "connector.id"
 
 const DbName string = "postgres"
 

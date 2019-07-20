@@ -36,16 +36,16 @@ func RunBinanceConnector(dictionaries *dic.Dictionaries, apiKey string, secretKe
 
 		var response = proto.ExecResponse{Id: request.Id}
 
-		prices, err := client.NewListPricesService().Do(context.Background())
+		_, err := client.NewListPricesService().Do(context.Background())
 
 		if err != nil {
 			ctxLog.Error("checkConnection error ", err)
 			response.Description = err.Error()
 			response.Status = proto.ExecResponseStatusError
 		} else {
-			for _, p := range prices {
-				log.Trace(p)
-			}
+			//for _, p := range prices {
+			//	log.Trace(p)
+			//}
 
 			response.Status = proto.ExecResponseStatusOk
 		}

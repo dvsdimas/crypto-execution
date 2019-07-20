@@ -1,20 +1,20 @@
 package coordinator
 
 import (
-	"database/sql"
 	log "github.com/sirupsen/logrus"
 	"msq.ai/connectors/proto"
+	pgh "msq.ai/db/postgres/helper"
 	"time"
 )
 
-func RunCoordinator(db *sql.DB, out chan<- *proto.ExecRequest, in <-chan *proto.ExecResponse, exchangeId int16) {
+func RunCoordinator(dburl string, out chan<- *proto.ExecRequest, in <-chan *proto.ExecResponse, exchangeId int16, connectorId int16) {
 
 	ctxLog := log.WithFields(log.Fields{"id": "Coordinator"})
 
 	ctxLog.Info("Coordinator is going to start")
 
-	if db == nil {
-		ctxLog.Fatal("db is nil !")
+	if len(dburl) < 1 {
+		ctxLog.Fatal("dburl is empty !")
 	}
 
 	if in == nil {
@@ -29,11 +29,7 @@ func RunCoordinator(db *sql.DB, out chan<- *proto.ExecRequest, in <-chan *proto.
 
 	var pingTime = 30 * time.Second
 	var prevOpTime time.Time
-	var request *proto.ExecRequest
-	var response *proto.ExecResponse
 	var id int64 = 0
-
-	// TODO configure DB pool
 
 	incId := func() {
 		id = id + 1
@@ -47,11 +43,11 @@ func RunCoordinator(db *sql.DB, out chan<- *proto.ExecRequest, in <-chan *proto.
 
 			incId()
 
-			request = &proto.ExecRequest{Id: id, What: proto.ExecRequestCheckConnection}
+			request := &proto.ExecRequest{Id: id, What: proto.ExecRequestCheckConnection}
 
 			out <- request
 
-			response = <-in
+			response := <-in
 
 			if response == nil {
 				ctxLog.Fatal("Protocol violation! ExecResponse is nil")
@@ -77,13 +73,52 @@ func RunCoordinator(db *sql.DB, out chan<- *proto.ExecRequest, in <-chan *proto.
 
 	//------------------------------------------------------------------------------------------------------------------
 
+	dump := make(chan *proto.ExecResponse, 10)
+
 	go func() {
 
-		// TODO restore state lost operations
+		db, err := pgh.GetDbByUrl(dburl)
+
+		if err != nil {
+			ctxLog.Fatal("Cannot connect to DB with URL ["+dburl+"] ", err)
+		}
+
+		db.SetMaxIdleConns(1)
+		db.SetMaxOpenConns(3)
+		db.SetConnMaxLifetime(time.Hour)
 
 		for {
 
+			response := <-dump
+
+			ctxLog.Trace("Dump execution result to DB ", response)
+
+			// TODO !!!!!!!!!!!!!!!!!!
+		}
+
+	}()
+
+	//------------------------------------------------------------------------------------------------------------------
+
+	go func() {
+
+		db, err := pgh.GetDbByUrl(dburl)
+
+		if err != nil {
+			ctxLog.Fatal("Cannot connect to DB with URL ["+dburl+"] ", err)
+		}
+
+		db.SetMaxIdleConns(1)
+		db.SetMaxOpenConns(3)
+		db.SetConnMaxLifetime(time.Hour)
+
+		for {
+
+			// TODO restore state lost operations
+
 			// TODO try get from DB
+
+			// TODO check what happen without DB !!!!
 
 			// TODO execute
 

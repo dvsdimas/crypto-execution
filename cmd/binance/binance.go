@@ -69,6 +69,8 @@ func main() {
 		ctxLog.Fatal("Cannot load Dictionaries from DB with URL ["+url+"] ", err)
 	}
 
+	pgh.CloseDb(db)
+
 	//------------------------------------ start binance connector  ----------------------------------------------------
 
 	apiKey := properties.MustGet(propertyBinanceApiKeyName)
@@ -98,7 +100,13 @@ func main() {
 		ctxLog.Fatal("Illegal Exchange name ! ", exchangeName)
 	}
 
-	cord.RunCoordinator(db, requests, responses, exchangeId)
+	connectorId := int16(properties.MustGetInt(constants.ConnectorIdPropertyName))
+
+	if exchangeId < 1 {
+		ctxLog.Fatal("Illegal connectorId ! ", connectorId)
+	}
+
+	cord.RunCoordinator(url, requests, responses, exchangeId, connectorId)
 
 	//------------------------------------------------------------------------------------------------------------------
 
