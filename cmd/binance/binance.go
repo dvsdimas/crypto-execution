@@ -4,6 +4,7 @@ import (
 	_ "github.com/lib/pq"
 	prop "github.com/magiconair/properties"
 	log "github.com/sirupsen/logrus"
+	cord "msq.ai/connectors/coordinator"
 	"msq.ai/connectors/proto"
 	"msq.ai/constants"
 	"msq.ai/db/postgres/dao"
@@ -68,8 +69,6 @@ func main() {
 		ctxLog.Fatal("Cannot load Dictionaries from DB with URL ["+url+"] ", err)
 	}
 
-	pgh.CloseDb(db)
-
 	//------------------------------------ start binance connector  ----------------------------------------------------
 
 	apiKey := properties.MustGet(propertyBinanceApiKeyName)
@@ -89,15 +88,17 @@ func main() {
 
 	ecbinance.RunBinanceConnector(dictionaries, apiKey, secretKey, requests, responses)
 
-	// TODO
+	//----------------------------------------- start coordinator ------------------------------------------------------
 
-	//--------------------------------------- repair lost commands  ----------------------------------------------------
+	exchangeName := properties.MustGet(constants.ExchangeNamePropertyName)
 
-	// TODO
+	exchangeId := dictionaries.Exchanges().GetIdByName(exchangeName)
 
-	//--------------------------------------- start command loader  ----------------------------------------------------
+	if exchangeId < 1 {
+		ctxLog.Fatal("Illegal Exchange name ! ", exchangeName)
+	}
 
-	// TODO
+	cord.RunCoordinator(db, requests, responses, exchangeId)
 
 	//------------------------------------------------------------------------------------------------------------------
 
