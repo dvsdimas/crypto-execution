@@ -33,7 +33,18 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 	db.SetMaxOpenConns(30)
 	db.SetConnMaxLifetime(time.Hour)
 
-	statusCreatedId := dictionaries.ExecutionStatuses().GetIdByName(con.ExecutionStatusCreatedName)
+	dbLoadCommandById := func(id int64) (*comd.Command, error) {
+		return dao.LoadCommandById(db, id)
+	}
+
+	dbInsertCommand := func(exchangeId int16, instrumentVal string, directionId int16, orderTypeId int16, limitPrice float64,
+		amount float64, executionTypeId int16, future time.Time, refPositionIdVal string, now time.Time, accountId int64) (int64, error) {
+
+		statusCreatedId := dictionaries.ExecutionStatuses().GetIdByName(con.ExecutionStatusCreatedName)
+
+		return dao.InsertCommand(db, exchangeId, instrumentVal, directionId, orderTypeId, limitPrice, amount, statusCreatedId,
+			executionTypeId, future, refPositionIdVal, now, accountId)
+	}
 
 	// curl -X GET localhost:8080/execution/v1/command/25
 
@@ -57,7 +68,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 		ctxLog.Trace("id [", id, "]")
 
-		command, err := dao.LoadCommandById(db, id)
+		command, err := dbLoadCommandById(id)
 
 		if err != nil {
 
@@ -256,8 +267,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 		future := now.Add(delta)
 
-		id, err := dao.InsertCommand(db, exchangeId, instrumentVal, directionId, orderTypeId, limitPrice, amount, statusCreatedId,
-			executionTypeId, future, refPositionIdVal, now, accountId)
+		id, err := dbInsertCommand(exchangeId, instrumentVal, directionId, orderTypeId, limitPrice, amount, executionTypeId, future, refPositionIdVal, now, accountId)
 
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{

@@ -3,11 +3,15 @@ package coordinator
 import (
 	log "github.com/sirupsen/logrus"
 	"msq.ai/connectors/proto"
+	"msq.ai/constants"
+	"msq.ai/data/cmd"
+	"msq.ai/db/postgres/dao"
+	dic "msq.ai/db/postgres/dictionaries"
 	pgh "msq.ai/db/postgres/helper"
 	"time"
 )
 
-func RunCoordinator(dburl string, out chan<- *proto.ExecRequest, in <-chan *proto.ExecResponse, exchangeId int16, connectorId int16) {
+func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *proto.ExecRequest, in <-chan *proto.ExecResponse, exchangeId int16, connectorId int16) {
 
 	ctxLog := log.WithFields(log.Fields{"id": "Coordinator"})
 
@@ -112,25 +116,49 @@ func RunCoordinator(dburl string, out chan<- *proto.ExecRequest, in <-chan *prot
 		db.SetMaxOpenConns(3)
 		db.SetConnMaxLifetime(time.Hour)
 
+		dbTryGetCommandForExecution := func() *cmd.Command {
+
+			statusCreatedId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusCreatedName)
+			statusExecutingId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusExecutingName)
+
+			// TODO TIME !!!!
+
+			result, err := dao.TryGetCommandForExecution(db, exchangeId, connectorId, time.Now(), statusCreatedId, statusExecutingId)
+
+			if err != nil {
+				ctxLog.Error("dbTryGetCommandForExecution error ! ", err)
+				time.Sleep(5 * time.Second)
+				return nil
+			}
+
+			return result
+		}
+
+		var command *cmd.Command
+
 		for {
 
 			// TODO restore state lost operations
 
 			// TODO try get from DB
 
-			// TODO check what happen without DB !!!!
+			command = dbTryGetCommandForExecution()
 
-			// TODO execute
+			if command != nil {
 
-			// TODO save result to DB
+				// TODO execute
 
-			delta := time.Now().Sub(prevOpTime)
+				// TODO save result to DB
+			} else {
 
-			if delta > pingTime {
-				pingExchange()
+				delta := time.Now().Sub(prevOpTime)
+
+				if delta > pingTime {
+					pingExchange()
+				}
+
+				time.Sleep(250 * time.Millisecond)
 			}
-
-			time.Sleep(100 * time.Millisecond)
 		}
 
 	}()

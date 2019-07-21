@@ -12,3 +12,4 @@ const OrderTypeLimitName string = "LIMIT"
 //const OrderTypeMarketName string = "MARKET"
 
 const ExecutionStatusCreatedName string = "CREATED"
+const ExecutionStatusExecutingName string = "EXECUTING"

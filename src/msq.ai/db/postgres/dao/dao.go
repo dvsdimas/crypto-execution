@@ -24,9 +24,131 @@ const insertCommandSql = "INSERT INTO execution (exchange_id, instrument_name, d
 const insertCommandHistorySql = "INSERT INTO execution_history (execution_id, status_from_id, status_to_id, timestamp) " +
 	"VALUES ($1, $2, $3, $4)"
 
-const loadCommandByIdSql = "SELECT id, exchange_id, instrument_name, direction_id, order_type_id, limit_price, amount, " +
+const selectCommandSql = "SELECT id, exchange_id, instrument_name, direction_id, order_type_id, limit_price, amount, " +
 	"status_id, connector_id, execution_type_id,execute_till_time, ref_position_id, time_in_force_id, update_timestamp, account_id, " +
-	"description FROM execution WHERE id = $1"
+	"description FROM execution"
+
+const loadCommandByIdSql = selectCommandSql + " WHERE id = $1"
+
+const tryGetCommandForExecutionSql = selectCommandSql + " WHERE exchange_id = $1 AND status_id = $2 AND connector_id ISNULL " +
+	"AND execute_till_time > $3 FOR UPDATE LIMIT 1"
+
+const updateCommandStatusByIdSql = "UPDATE execution SET status_id = $1, connector_id = $2, update_timestamp = $3 WHERE id = $4"
+
+func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validTimeTo time.Time, statusCreatedId int16,
+	statusExecutingId int16) (*cmd.Command, error) {
+
+	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
+
+	if err != nil {
+		return nil, err
+	}
+
+	stmt, err := tx.Prepare(tryGetCommandForExecutionSql)
+
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+
+	row := stmt.QueryRow(exchangeId, statusCreatedId, validTimeTo)
+
+	var (
+		limitPrice    sql.NullFloat64
+		connectorId   sql.NullInt64
+		refPositionId sql.NullString
+		description   sql.NullString
+
+		command cmd.Command
+	)
+
+	err = row.Scan(&command.Id, &command.ExchangeId, &command.InstrumentName, &command.DirectionId, &command.OrderTypeId,
+		&limitPrice, &command.Amount, &command.StatusId, &connectorId, &command.ExecutionTypeId, &command.ExecuteTillTime,
+		&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &description)
+
+	if err != nil {
+
+		_ = stmt.Close()
+		_ = tx.Rollback()
+
+		if err == sql.ErrNoRows {
+			return nil, nil
+		} else {
+			return nil, err
+		}
+	}
+
+	if limitPrice.Valid {
+		command.LimitPrice = limitPrice.Float64
+	} else {
+		command.LimitPrice = -1
+	}
+
+	if connectorId.Valid {
+		command.ConnectorId = connectorId.Int64
+	} else {
+		command.ConnectorId = -1
+	}
+
+	if refPositionId.Valid {
+		command.RefPositionId = refPositionId.String
+	} else {
+		command.RefPositionId = ""
+	}
+
+	if description.Valid {
+		command.Description = description.String
+	} else {
+		command.Description = ""
+	}
+
+	err = stmt.Close()
+
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+
+	stmt, err = tx.Prepare(updateCommandStatusByIdSql)
+
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+
+	now := time.Now()
+
+	_, err = stmt.Exec(statusExecutingId, conId, now, command.Id)
+
+	if err != nil {
+		_ = stmt.Close()
+		_ = tx.Rollback()
+		return nil, err
+	}
+
+	stmt, err = tx.Prepare(insertCommandHistorySql)
+
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+
+	_, err = stmt.Exec(command.Id, statusCreatedId, statusExecutingId, now)
+
+	if err != nil {
+		_ = stmt.Close()
+		_ = tx.Rollback()
+		return nil, err
+	}
+
+	err = tx.Commit()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &command, nil
+}
 
 func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) {
 
