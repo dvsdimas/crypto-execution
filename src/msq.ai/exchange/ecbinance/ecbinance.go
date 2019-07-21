@@ -5,6 +5,7 @@ import (
 	"github.com/adshao/go-binance"
 	log "github.com/sirupsen/logrus"
 	"msq.ai/connectors/proto"
+	"msq.ai/constants"
 	dic "msq.ai/db/postgres/dictionaries"
 )
 
@@ -55,6 +56,68 @@ func RunBinanceConnector(dictionaries *dic.Dictionaries, apiKey string, secretKe
 
 	//------------------------------------------------------------------------------------------------------------------
 
+	trade := func(request *proto.ExecRequest) {
+
+		var response = proto.ExecResponse{Id: request.Id}
+
+		c := request.Cmd
+
+		if c == nil {
+			ctxLog.Fatal("Protocol violation! ExecRequest Trade with empty cmd ! ", request)
+			return
+		}
+
+		orderService := client.NewCreateOrderService().Symbol(request.Cmd.Instrument)
+
+		if c.OrderType == constants.OrderTypeMarketName {
+			orderService = orderService.Type(binance.OrderTypeMarket)
+		} else if c.Direction == constants.OrderTypeLimitName {
+			orderService = orderService.Type(binance.OrderTypeLimit)
+			orderService = orderService.Price(c.LimitPrice)
+		} else {
+			ctxLog.Fatal("Protocol violation! ExecRequest wrong OrderType with empty cmd ! ", request)
+			return
+		}
+
+		if c.Direction == constants.OrderDirectionBuyName {
+			orderService = orderService.Side(binance.SideTypeBuy)
+		} else if c.Direction == constants.OrderDirectionSellName {
+			orderService = orderService.Side(binance.SideTypeSell)
+		} else {
+			ctxLog.Fatal("Protocol violation! ExecRequest wrong Direction with empty cmd ! ", request)
+			return
+		}
+
+		if c.TimeInForce == constants.TimeInForceFokName { // TODO add GTC
+			//orderService = orderService.TimeInForce(binance.TimeInForceFOK)
+		} else {
+			ctxLog.Fatal("Protocol violation! ExecRequest wrong Direction with empty cmd ! ", request)
+			return
+		}
+
+		orderService = orderService.Quantity(c.Amount)
+
+		order, err := orderService.Do(context.Background())
+
+		ctxLog.Debug("Order from Binance ", order)
+
+		if err != nil {
+			ctxLog.Error("Trade error ", err)
+			response.Description = err.Error()
+			response.Status = proto.ExecResponseStatusError
+		} else {
+			//for _, p := range prices {
+			//	log.Trace(p)
+			//}
+
+			response.Status = proto.ExecResponseStatusOk
+		}
+
+		out <- &response
+	}
+
+	//------------------------------------------------------------------------------------------------------------------
+
 	go func() {
 
 		for {
@@ -67,12 +130,11 @@ func RunBinanceConnector(dictionaries *dic.Dictionaries, apiKey string, secretKe
 
 			if request.What == proto.ExecRequestCheckConnection {
 				checkConnection(request)
+			} else if request.What == proto.ExecRequestTrade {
+				trade(request)
 			} else {
-				ctxLog.Fatal("Protocol violation! ExecRequest with wrong type ! ", request.What)
+				ctxLog.Fatal("Protocol violation! ExecRequest with wrong type ! ", request)
 			}
-
-			// TODO
-
 		}
 	}()
 

@@ -55,7 +55,7 @@ func ToRaw(cmd *Command, dictionaries *dic.Dictionaries) *RawCommand {
 	raw.Direction = dictionaries.Directions().GetNameById(cmd.DirectionId)
 	raw.OrderType = dictionaries.OrderTypes().GetNameById(cmd.OrderTypeId)
 	raw.LimitPrice = fmt.Sprintf("%f", cmd.LimitPrice)
-	raw.Amount = fmt.Sprintf("%f", cmd.Amount)
+	raw.Amount = fmt.Sprintf("%d", int32(cmd.Amount))
 	raw.Status = dictionaries.ExecutionStatuses().GetNameById(cmd.StatusId)
 	raw.ConnectorId = strconv.FormatInt(cmd.ConnectorId, 10)
 	raw.ExecutionType = dictionaries.ExecutionTypes().GetNameById(cmd.ExecutionTypeId)

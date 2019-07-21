@@ -8,8 +8,12 @@ const ConnectorIdPropertyName string = "connector.id"
 const DbName string = "postgres"
 
 const OrderTypeLimitName string = "LIMIT"
+const OrderTypeMarketName string = "MARKET"
 
-//const OrderTypeMarketName string = "MARKET"
+const OrderDirectionBuyName string = "BUY"
+const OrderDirectionSellName string = "SELL"
+
+const TimeInForceFokName string = "FOK"
 
 const ExecutionStatusCreatedName string = "CREATED"
 const ExecutionStatusExecutingName string = "EXECUTING"

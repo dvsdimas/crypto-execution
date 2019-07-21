@@ -34,6 +34,7 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 	var pingTime = 30 * time.Second
 	var prevOpTime time.Time
 	var id int64 = 0
+	dump := make(chan *proto.ExecResponse, 10)
 
 	incId := func() {
 		id = id + 1
@@ -77,7 +78,36 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 	//------------------------------------------------------------------------------------------------------------------
 
-	dump := make(chan *proto.ExecResponse, 10)
+	tradeExchange := func(raw *cmd.RawCommand) {
+
+		incId()
+
+		request := &proto.ExecRequest{Id: id, What: proto.ExecRequestTrade, Cmd: raw}
+
+		out <- request
+
+		response := <-in
+
+		if response == nil {
+			ctxLog.Fatal("Protocol violation! ExecResponse is nil")
+			return
+		}
+
+		if response.Id != request.Id {
+			ctxLog.Fatal("Protocol violation! response.Id doesn't equal request.Id")
+		}
+
+		if response.Status == proto.ExecResponseStatusOk {
+			prevOpTime = time.Now()
+			log.Trace("Trade operation successfully finished")
+		} else if response.Status == proto.ExecResponseStatusError {
+			log.Info("Exchange Trade error ! ", response.Description)
+		} else {
+			ctxLog.Fatal("Protocol violation! Trade response has unknown status")
+		}
+
+		dump <- response
+	}
 
 	go func() {
 
@@ -106,6 +136,8 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 	go func() {
 
+		future := 100 * time.Millisecond
+
 		db, err := pgh.GetDbByUrl(dburl)
 
 		if err != nil {
@@ -121,9 +153,7 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 			statusCreatedId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusCreatedName)
 			statusExecutingId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusExecutingName)
 
-			// TODO TIME !!!!
-
-			result, err := dao.TryGetCommandForExecution(db, exchangeId, connectorId, time.Now(), statusCreatedId, statusExecutingId)
+			result, err := dao.TryGetCommandForExecution(db, exchangeId, connectorId, time.Now().Add(future), statusCreatedId, statusExecutingId)
 
 			if err != nil {
 				ctxLog.Error("dbTryGetCommandForExecution error ! ", err)
@@ -135,20 +165,22 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 		}
 
 		var command *cmd.Command
+		var raw *cmd.RawCommand
+
+		// TODO restore state lost operations
 
 		for {
-
-			// TODO restore state lost operations
-
-			// TODO try get from DB
 
 			command = dbTryGetCommandForExecution()
 
 			if command != nil {
 
-				// TODO execute
+				raw = cmd.ToRaw(command, dictionaries)
 
-				// TODO save result to DB
+				ctxLog.Info("Just got new command for execution", raw)
+
+				tradeExchange(raw)
+
 			} else {
 
 				delta := time.Now().Sub(prevOpTime)
