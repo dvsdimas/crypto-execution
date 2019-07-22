@@ -15,8 +15,6 @@ import (
 )
 
 const propertiesFileName string = "binance.properties"
-const propertyBinanceApiKeyName string = "binance.apiKey"
-const propertyBinanceSecretKeyName string = "binance.secretKey"
 
 func init() {
 
@@ -73,22 +71,10 @@ func main() {
 
 	//------------------------------------ start binance connector  ----------------------------------------------------
 
-	apiKey := properties.MustGet(propertyBinanceApiKeyName)
-
-	if len(apiKey) < 1 {
-		ctxLog.Fatal("apiKey is empty !")
-	}
-
-	secretKey := properties.MustGet(propertyBinanceSecretKeyName)
-
-	if len(secretKey) < 1 {
-		ctxLog.Fatal("secretKey is empty !")
-	}
-
 	requests := make(chan *proto.ExecRequest)
 	responses := make(chan *proto.ExecResponse)
 
-	ecbinance.RunBinanceConnector(dictionaries, apiKey, secretKey, requests, responses)
+	ecbinance.RunBinanceConnector(dictionaries, requests, responses)
 
 	//----------------------------------------- start coordinator ------------------------------------------------------
 
