@@ -38,12 +38,13 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 	}
 
 	dbInsertCommand := func(exchangeId int16, instrumentVal string, directionId int16, orderTypeId int16, limitPrice float64,
-		amount float64, executionTypeId int16, future time.Time, refPositionIdVal string, now time.Time, accountId int64) (int64, error) {
+		amount float64, executionTypeId int16, future time.Time, refPositionIdVal string, now time.Time, accountId int64,
+		apiKey string, secretKey string) (int64, error) {
 
 		statusCreatedId := dictionaries.ExecutionStatuses().GetIdByName(con.ExecutionStatusCreatedName)
 
 		return dao.InsertCommand(db, exchangeId, instrumentVal, directionId, orderTypeId, limitPrice, amount, statusCreatedId,
-			executionTypeId, future, refPositionIdVal, now, accountId)
+			executionTypeId, future, refPositionIdVal, now, accountId, apiKey, secretKey)
 	}
 
 	// curl -X GET localhost:8080/execution/v1/command/25
@@ -85,7 +86,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 	router := gin.Default()
 
-	// curl -X PUT -d "cmd[exchange]=BINANCE&cmd[instrument]=EUR/USD&cmd[direction]=BUY&cmd[order_type]=LIMIT&cmd[limit_price]=1.7&cmd[amount]=2&cmd[execution_type]=OPEN&cmd[ref_position_id]=12345&cmd[account_id]=43542352" localhost:8080/execution/v1/command/
+	// curl -X PUT -d "cmd[exchange]=BINANCE&cmd[instrument]=BTT/BTC&cmd[direction]=BUY&cmd[order_type]=MARKET&cmd[amount]=1000&cmd[execution_type]=OPEN&cmd[account_id]=1&cmd[api_key]=asdfasdfasdsa&cmd[secret_key]=asfasdfasdasdas" localhost:8080/execution/v1/command/
 
 	var handlerPUT = func(c *gin.Context) {
 
@@ -263,11 +264,42 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 		//--------------------------------------------------------------------------------------------------------------
 
+		apiKey := cmd["api_key"]
+
+		ctxLog.Trace("api_key [", apiKey, "]")
+
+		if len(apiKey) < 1 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"error": "Wrong 'api_key' parameter [" + apiKey + "]",
+			})
+			return
+		}
+
+		ctxLog.Trace("apiKey [", apiKey, "]")
+
+		//--------------------------------------------------------------------------------------------------------------
+
+		secretKey := cmd["secret_key"]
+
+		ctxLog.Trace("secret_key [", secretKey, "]")
+
+		if len(secretKey) < 1 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"error": "Wrong 'secret_key' parameter [" + secretKey + "]",
+			})
+			return
+		}
+
+		ctxLog.Trace("secretKey [", secretKey, "]")
+
+		//--------------------------------------------------------------------------------------------------------------
+
 		now := time.Now()
 
 		future := now.Add(delta)
 
-		id, err := dbInsertCommand(exchangeId, instrumentVal, directionId, orderTypeId, limitPrice, amount, executionTypeId, future, refPositionIdVal, now, accountId)
+		id, err := dbInsertCommand(exchangeId, instrumentVal, directionId, orderTypeId, limitPrice, amount, executionTypeId,
+			future, refPositionIdVal, now, accountId, apiKey, secretKey)
 
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{

@@ -245,7 +245,10 @@ func nullLimitPrice(limitPrice float64) sql.NullFloat64 {
 }
 
 func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId int16, orderTypeId int16, limitPrice float64,
-	amount float64, statusId int16, executionTypeId int16, future time.Time, refPositionIdVal string, now time.Time, accountId int64) (int64, error) {
+	amount float64, statusId int16, executionTypeId int16, future time.Time, refPositionIdVal string, now time.Time, accountId int64,
+	apiKey string, secretKey string) (int64, error) {
+
+	// TODO
 
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
 
