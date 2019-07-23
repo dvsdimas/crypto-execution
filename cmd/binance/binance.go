@@ -92,7 +92,11 @@ func main() {
 		ctxLog.Fatal("Illegal connectorId ! ", connectorId)
 	}
 
-	cord.RunCoordinator(url, dictionaries, requests, responses, exchangeId, connectorId)
+	cord.RunCoordinator(url, dictionaries, requests, exchangeId, connectorId)
+
+	//----------------------------------------- start dumper ------------------------------------------------------
+
+	// TODO
 
 	//------------------------------------------------------------------------------------------------------------------
 

@@ -86,6 +86,8 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 	router := gin.Default()
 
+	// TODO add unique id
+
 	// curl -X PUT -d "cmd[exchange]=BINANCE&cmd[instrument]=BTT/BTC&cmd[direction]=BUY&cmd[order_type]=MARKET&cmd[amount]=1000&cmd[execution_type]=OPEN&cmd[account_id]=1&cmd[api_key]=asdfasdfasdsa&cmd[secret_key]=asfasdfasdasdas" localhost:8080/execution/v1/command/
 
 	var handlerPUT = func(c *gin.Context) {
