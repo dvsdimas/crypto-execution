@@ -90,13 +90,15 @@ CREATE TABLE "execution" (
     secret_key        TEXT NOT NULL,
     description       TEXT DEFAULT NULL,
     result_order_id   TEXT DEFAULT NULL,
+    finger_print      TEXT NOT NULL,
 
     CONSTRAINT "execution_fk1" FOREIGN KEY ("exchange_id")       REFERENCES "exchange"         ("id"),
     CONSTRAINT "execution_fk2" FOREIGN KEY ("status_id")         REFERENCES "execution_status" ("id"),
     CONSTRAINT "execution_fk3" FOREIGN KEY ("direction_id")      REFERENCES "direction"        ("id"),
     CONSTRAINT "execution_fk4" FOREIGN KEY ("order_type_id")     REFERENCES "order_type"       ("id"),
     CONSTRAINT "execution_fk5" FOREIGN KEY ("time_in_force_id")  REFERENCES "time_in_force"    ("id"),
-    CONSTRAINT "execution_fk6" FOREIGN KEY ("execution_type_id") REFERENCES "execution_type"   ("id")
+    CONSTRAINT "execution_fk6" FOREIGN KEY ("execution_type_id") REFERENCES "execution_type"   ("id"),
+    CONSTRAINT unique_finger_print UNIQUE(finger_print)
 );
 
 

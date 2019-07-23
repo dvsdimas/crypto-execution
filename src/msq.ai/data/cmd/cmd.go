@@ -27,6 +27,7 @@ type Command struct {
 	ApiKey          string
 	SecretKey       string
 	ResultOrderId   string
+	FingerPrint     string
 }
 
 type RawCommand struct {
@@ -49,6 +50,7 @@ type RawCommand struct {
 	ApiKey          string
 	SecretKey       string
 	ResultOrderId   string
+	FingerPrint     string
 }
 
 func ToRaw(cmd *Command, dictionaries *dic.Dictionaries) *RawCommand {
@@ -74,6 +76,7 @@ func ToRaw(cmd *Command, dictionaries *dic.Dictionaries) *RawCommand {
 	raw.ApiKey = cmd.ApiKey
 	raw.SecretKey = cmd.SecretKey
 	raw.ResultOrderId = cmd.ResultOrderId
+	raw.FingerPrint = cmd.FingerPrint
 
 	return &raw
 }

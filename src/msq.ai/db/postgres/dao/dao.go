@@ -18,15 +18,15 @@ const loadExecutionTypesSql = "SELECT id, type FROM execution_type"
 const loadExecutionStatusSql = "SELECT id, value FROM execution_status"
 
 const insertCommandSql = "INSERT INTO execution (exchange_id, instrument_name, direction_id, order_type_id, limit_price," +
-	"amount, status_id, execution_type_id, execute_till_time, ref_position_id, update_timestamp, account_id, api_key, secret_key) " +
-	"VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id"
+	"amount, status_id, execution_type_id, execute_till_time, ref_position_id, update_timestamp, account_id, api_key, secret_key, " +
+	"finger_print) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id"
 
 const insertCommandHistorySql = "INSERT INTO execution_history (execution_id, status_from_id, status_to_id, timestamp) " +
 	"VALUES ($1, $2, $3, $4)"
 
 const selectCommandSql = "SELECT id, exchange_id, instrument_name, direction_id, order_type_id, limit_price, amount, " +
 	"status_id, connector_id, execution_type_id,execute_till_time, ref_position_id, time_in_force_id, update_timestamp, account_id, " +
-	"description, api_key, secret_key, result_order_id FROM execution"
+	"description, api_key, secret_key, result_order_id, finger_print FROM execution"
 
 const loadCommandByIdSql = selectCommandSql + " WHERE id = $1"
 
@@ -65,6 +65,8 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 	err = row.Scan(&command.Id, &command.ExchangeId, &command.InstrumentName, &command.DirectionId, &command.OrderTypeId,
 		&limitPrice, &command.Amount, &command.StatusId, &connectorId, &command.ExecutionTypeId, &command.ExecuteTillTime,
 		&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &description)
+
+	// TODO &command.ApiKey, &command.SecretKey, &resultOrderId, &command.FingerPrint
 
 	if err != nil {
 
@@ -180,7 +182,7 @@ func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) {
 	err = row.Scan(&command.Id, &command.ExchangeId, &command.InstrumentName, &command.DirectionId, &command.OrderTypeId,
 		&limitPrice, &command.Amount, &command.StatusId, &connectorId, &command.ExecutionTypeId, &command.ExecuteTillTime,
 		&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &description, &command.ApiKey,
-		&command.SecretKey, &resultOrderId)
+		&command.SecretKey, &resultOrderId, &command.FingerPrint)
 
 	if limitPrice.Valid {
 		command.LimitPrice = limitPrice.Float64
@@ -254,7 +256,7 @@ func nullLimitPrice(limitPrice float64) sql.NullFloat64 {
 
 func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId int16, orderTypeId int16, limitPrice float64,
 	amount float64, statusId int16, executionTypeId int16, future time.Time, refPositionIdVal string, now time.Time, accountId int64,
-	apiKey string, secretKey string) (int64, error) {
+	apiKey string, secretKey string, fingerPrint string) (int64, error) {
 
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
 
@@ -270,11 +272,11 @@ func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId 
 	}
 
 	row := stmt.QueryRow(exchangeId, instrument, directionId, orderTypeId, nullLimitPrice(limitPrice), amount, statusId,
-		executionTypeId, future, nullString(refPositionIdVal), now, accountId, apiKey, secretKey)
+		executionTypeId, future, nullString(refPositionIdVal), now, accountId, apiKey, secretKey, fingerPrint)
 
 	var id int64
 
-	err = row.Scan(&id)
+	err = row.Scan(&id) // TODO duplicate error !!!!!
 
 	if err != nil {
 		_ = stmt.Close()
