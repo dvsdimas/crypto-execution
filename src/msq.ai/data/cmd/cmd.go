@@ -24,6 +24,9 @@ type Command struct {
 	UpdateTimestamp time.Time
 	AccountId       int64
 	Description     string
+	ApiKey          string
+	SecretKey       string
+	ResultOrderId   string
 }
 
 type RawCommand struct {
@@ -43,6 +46,9 @@ type RawCommand struct {
 	UpdateTime      string
 	AccountId       string
 	Description     string
+	ApiKey          string
+	SecretKey       string
+	ResultOrderId   string
 }
 
 func ToRaw(cmd *Command, dictionaries *dic.Dictionaries) *RawCommand {
@@ -55,7 +61,7 @@ func ToRaw(cmd *Command, dictionaries *dic.Dictionaries) *RawCommand {
 	raw.Direction = dictionaries.Directions().GetNameById(cmd.DirectionId)
 	raw.OrderType = dictionaries.OrderTypes().GetNameById(cmd.OrderTypeId)
 	raw.LimitPrice = fmt.Sprintf("%f", cmd.LimitPrice)
-	raw.Amount = fmt.Sprintf("%d", int32(cmd.Amount))
+	raw.Amount = fmt.Sprintf("%f", cmd.Amount)
 	raw.Status = dictionaries.ExecutionStatuses().GetNameById(cmd.StatusId)
 	raw.ConnectorId = strconv.FormatInt(cmd.ConnectorId, 10)
 	raw.ExecutionType = dictionaries.ExecutionTypes().GetNameById(cmd.ExecutionTypeId)
@@ -65,6 +71,9 @@ func ToRaw(cmd *Command, dictionaries *dic.Dictionaries) *RawCommand {
 	raw.UpdateTime = cmd.UpdateTimestamp.Format(time.RFC3339)
 	raw.AccountId = strconv.FormatInt(cmd.AccountId, 10)
 	raw.Description = cmd.Description
+	raw.ApiKey = cmd.ApiKey
+	raw.SecretKey = cmd.SecretKey
+	raw.ResultOrderId = cmd.ResultOrderId
 
 	return &raw
 }
