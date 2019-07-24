@@ -81,6 +81,13 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 			return
 		}
 
+		if command == nil {
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
+				"error": "Not found Command with Id [" + idVal + "] ",
+			})
+			return
+		}
+
 		c.JSON(http.StatusOK, comd.ToRaw(command, dictionaries))
 	}
 

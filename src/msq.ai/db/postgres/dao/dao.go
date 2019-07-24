@@ -184,6 +184,17 @@ func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) {
 		&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &description, &command.ApiKey,
 		&command.SecretKey, &resultOrderId, &command.FingerPrint)
 
+	if err != nil {
+		_ = stmt.Close()
+		_ = tx.Rollback()
+
+		if err == sql.ErrNoRows {
+			return nil, nil
+		} else {
+			return nil, err
+		}
+	}
+
 	if limitPrice.Valid {
 		command.LimitPrice = limitPrice.Float64
 	} else {
@@ -212,12 +223,6 @@ func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) {
 		command.ResultOrderId = resultOrderId.String
 	} else {
 		command.ResultOrderId = ""
-	}
-
-	if err != nil {
-		_ = stmt.Close()
-		_ = tx.Rollback()
-		return nil, err
 	}
 
 	err = stmt.Close()
