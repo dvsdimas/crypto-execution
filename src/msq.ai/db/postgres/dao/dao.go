@@ -4,11 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/lib/pq"
 	"github.com/vishalkuo/bimap"
 	"msq.ai/data/cmd"
 	dic "msq.ai/db/postgres/dictionaries"
 	"time"
 )
+
+const duplicateKeyValueViolates = "23505"
 
 const loadExchangesSql = "SELECT id, name FROM exchange"
 const loadDirectionsSql = "SELECT id, value FROM direction"
@@ -16,6 +19,8 @@ const loadOrderTypesSql = "SELECT id, type FROM order_type"
 const loadTimeInForceSql = "SELECT id, type FROM time_in_force"
 const loadExecutionTypesSql = "SELECT id, type FROM execution_type"
 const loadExecutionStatusSql = "SELECT id, value FROM execution_status"
+
+const getCommandIdByFingerPrintSql = "SELECT id FROM execution WHERE finger_print = $1"
 
 const insertCommandSql = "INSERT INTO execution (exchange_id, instrument_name, direction_id, order_type_id, limit_price," +
 	"amount, status_id, execution_type_id, execute_till_time, ref_position_id, update_timestamp, account_id, api_key, secret_key, " +
@@ -259,6 +264,50 @@ func nullLimitPrice(limitPrice float64) sql.NullFloat64 {
 	return sql.NullFloat64{Float64: limitPrice, Valid: true}
 }
 
+func getCommandIdByFingerPrint(db *sql.DB, fingerPrint string) (int64, error) {
+
+	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: true})
+
+	if err != nil {
+		return -1, err
+	}
+
+	stmt, err := tx.Prepare(getCommandIdByFingerPrintSql)
+
+	if err != nil {
+		_ = tx.Rollback()
+		return -1, err
+	}
+
+	row := stmt.QueryRow(fingerPrint)
+
+	var id int64
+
+	err = row.Scan(&id)
+
+	if err != nil {
+		_ = stmt.Close()
+		_ = tx.Rollback()
+
+		return -1, err
+	}
+
+	err = stmt.Close()
+
+	if err != nil {
+		_ = tx.Rollback()
+		return -1, err
+	}
+
+	err = tx.Commit()
+
+	if err != nil {
+		return -1, err
+	}
+
+	return id, nil
+}
+
 func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId int16, orderTypeId int16, limitPrice float64,
 	amount float64, statusId int16, executionTypeId int16, future time.Time, refPositionIdVal string, now time.Time, accountId int64,
 	apiKey string, secretKey string, fingerPrint string) (int64, error) {
@@ -281,11 +330,18 @@ func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId 
 
 	var id int64
 
-	err = row.Scan(&id) // TODO duplicate error !!!!!
+	err = row.Scan(&id)
 
 	if err != nil {
 		_ = stmt.Close()
 		_ = tx.Rollback()
+
+		pqErr := err.(*pq.Error)
+
+		if pqErr.Code == duplicateKeyValueViolates {
+			return getCommandIdByFingerPrint(db, fingerPrint)
+		}
+
 		return -1, err
 	}
 
