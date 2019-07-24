@@ -11,7 +11,10 @@ import (
 	"time"
 )
 
-func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *proto.ExecRequest, exchangeId int16, connectorId int16) {
+const limit = 1 // TODO
+
+func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *proto.ExecRequest, in <-chan *proto.ExecResponse,
+	dump chan<- *proto.ExecResponse, exchangeId int16, connectorId int16) {
 
 	ctxLog := log.WithFields(log.Fields{"id": "Coordinator"})
 
@@ -24,10 +27,6 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 	if out == nil {
 		ctxLog.Fatal("ExecResponse channel is nil !")
 	}
-
-	//------------------------------------------------------------------------------------------------------------------
-
-	dump := make(chan *proto.ExecResponse, 10)
 
 	//------------------------------------------------------------------------------------------------------------------
 
@@ -76,7 +75,7 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 		for {
 
-			response := <-dump
+			response := <-in
 
 			ctxLog.Trace("Dump execution result to DB ", response)
 
@@ -89,7 +88,7 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 	go func() {
 
-		future := 100 * time.Millisecond
+		future := 50 * time.Millisecond
 
 		db, err := pgh.GetDbByUrl(dburl)
 
@@ -106,7 +105,7 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 			statusCreatedId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusCreatedName)
 			statusExecutingId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusExecutingName)
 
-			result, err := dao.TryGetCommandForExecution(db, exchangeId, connectorId, time.Now().Add(future), statusCreatedId, statusExecutingId)
+			result, err := dao.TryGetCommandForExecution(db, exchangeId, connectorId, time.Now().Add(future), statusCreatedId, statusExecutingId, limit)
 
 			if err != nil {
 				ctxLog.Error("dbTryGetCommandForExecution error ! ", err)
@@ -123,6 +122,8 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 		// TODO restore state lost operations
 
 		for {
+
+			// TODO check size executed requests
 
 			command = dbTryGetCommandForExecution()
 

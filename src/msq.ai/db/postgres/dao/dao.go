@@ -36,12 +36,12 @@ const selectCommandSql = "SELECT id, exchange_id, instrument_name, direction_id,
 const loadCommandByIdSql = selectCommandSql + " WHERE id = $1"
 
 const tryGetCommandForExecutionSql = selectCommandSql + " WHERE exchange_id = $1 AND status_id = $2 AND connector_id ISNULL " +
-	"AND execute_till_time > $3 FOR UPDATE LIMIT 1"
+	"AND execute_till_time > $3 FOR UPDATE LIMIT $4"
 
 const updateCommandStatusByIdSql = "UPDATE execution SET status_id = $1, connector_id = $2, update_timestamp = $3 WHERE id = $4"
 
 func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validTimeTo time.Time, statusCreatedId int16,
-	statusExecutingId int16) (*cmd.Command, error) {
+	statusExecutingId int16, limit int16) (*cmd.Command, error) {
 
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
 
@@ -56,22 +56,22 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 		return nil, err
 	}
 
-	row := stmt.QueryRow(exchangeId, statusCreatedId, validTimeTo)
+	row := stmt.QueryRow(exchangeId, statusCreatedId, validTimeTo, limit)
 
 	var (
 		limitPrice    sql.NullFloat64
 		connectorId   sql.NullInt64
 		refPositionId sql.NullString
 		description   sql.NullString
+		resultOrderId sql.NullString
 
 		command cmd.Command
 	)
 
 	err = row.Scan(&command.Id, &command.ExchangeId, &command.InstrumentName, &command.DirectionId, &command.OrderTypeId,
 		&limitPrice, &command.Amount, &command.StatusId, &connectorId, &command.ExecutionTypeId, &command.ExecuteTillTime,
-		&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &description)
-
-	// TODO &command.ApiKey, &command.SecretKey, &resultOrderId, &command.FingerPrint
+		&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &description, &command.ApiKey,
+		&command.SecretKey, &resultOrderId, &command.FingerPrint)
 
 	if err != nil {
 

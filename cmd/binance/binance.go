@@ -73,6 +73,7 @@ func main() {
 
 	requests := make(chan *proto.ExecRequest)
 	responses := make(chan *proto.ExecResponse)
+	dump := make(chan *proto.ExecResponse, 10) // TODO
 
 	ecbinance.RunBinanceConnector(dictionaries, requests, responses)
 
@@ -92,7 +93,7 @@ func main() {
 		ctxLog.Fatal("Illegal connectorId ! ", connectorId)
 	}
 
-	cord.RunCoordinator(url, dictionaries, requests, exchangeId, connectorId)
+	cord.RunCoordinator(url, dictionaries, requests, responses, dump, exchangeId, connectorId)
 
 	//----------------------------------------- start dumper ------------------------------------------------------
 
