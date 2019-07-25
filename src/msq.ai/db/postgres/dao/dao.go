@@ -3,8 +3,8 @@ package dao
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"github.com/lib/pq"
+	"github.com/pkg/errors"
 	"github.com/vishalkuo/bimap"
 	"msq.ai/data/cmd"
 	dic "msq.ai/db/postgres/dictionaries"
@@ -46,14 +46,14 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
 
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	stmt, err := tx.Prepare(tryGetCommandForExecutionSql)
 
 	if err != nil {
 		_ = tx.Rollback()
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	row := stmt.QueryRow(exchangeId, statusCreatedId, validTimeTo, limit)
@@ -81,7 +81,7 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 		if err == sql.ErrNoRows {
 			return nil, nil
 		} else {
-			return nil, err
+			return nil, errors.WithStack(err)
 		}
 	}
 
@@ -113,14 +113,14 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 
 	if err != nil {
 		_ = tx.Rollback()
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	stmt, err = tx.Prepare(updateCommandStatusByIdSql)
 
 	if err != nil {
 		_ = tx.Rollback()
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	now := time.Now()
@@ -130,14 +130,14 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 	if err != nil {
 		_ = stmt.Close()
 		_ = tx.Rollback()
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	stmt, err = tx.Prepare(insertCommandHistorySql)
 
 	if err != nil {
 		_ = tx.Rollback()
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	_, err = stmt.Exec(command.Id, statusCreatedId, statusExecutingId, now)
@@ -145,13 +145,13 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 	if err != nil {
 		_ = stmt.Close()
 		_ = tx.Rollback()
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	err = tx.Commit()
 
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	return &command, nil
@@ -162,14 +162,14 @@ func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) {
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: true})
 
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	stmt, err := tx.Prepare(loadCommandByIdSql)
 
 	if err != nil {
 		_ = tx.Rollback()
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	row := stmt.QueryRow(id)
@@ -196,7 +196,7 @@ func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		} else {
-			return nil, err
+			return nil, errors.WithStack(err)
 		}
 	}
 
@@ -234,13 +234,13 @@ func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) {
 
 	if err != nil {
 		_ = tx.Rollback()
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	err = tx.Commit()
 
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	return &command, nil
@@ -269,14 +269,14 @@ func getCommandIdByFingerPrint(db *sql.DB, fingerPrint string) (int64, error) {
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: true})
 
 	if err != nil {
-		return -1, err
+		return -1, errors.WithStack(err)
 	}
 
 	stmt, err := tx.Prepare(getCommandIdByFingerPrintSql)
 
 	if err != nil {
 		_ = tx.Rollback()
-		return -1, err
+		return -1, errors.WithStack(err)
 	}
 
 	row := stmt.QueryRow(fingerPrint)
@@ -289,20 +289,20 @@ func getCommandIdByFingerPrint(db *sql.DB, fingerPrint string) (int64, error) {
 		_ = stmt.Close()
 		_ = tx.Rollback()
 
-		return -1, err
+		return -1, errors.WithStack(err)
 	}
 
 	err = stmt.Close()
 
 	if err != nil {
 		_ = tx.Rollback()
-		return -1, err
+		return -1, errors.WithStack(err)
 	}
 
 	err = tx.Commit()
 
 	if err != nil {
-		return -1, err
+		return -1, errors.WithStack(err)
 	}
 
 	return id, nil
@@ -315,14 +315,14 @@ func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId 
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
 
 	if err != nil {
-		return -1, err
+		return -1, errors.WithStack(err)
 	}
 
 	stmt, err := tx.Prepare(insertCommandSql)
 
 	if err != nil {
 		_ = tx.Rollback()
-		return -1, err
+		return -1, errors.WithStack(err)
 	}
 
 	row := stmt.QueryRow(exchangeId, instrument, directionId, orderTypeId, nullLimitPrice(limitPrice), amount, statusId,
@@ -342,21 +342,21 @@ func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId 
 			return getCommandIdByFingerPrint(db, fingerPrint)
 		}
 
-		return -1, err
+		return -1, errors.WithStack(err)
 	}
 
 	err = stmt.Close()
 
 	if err != nil {
 		_ = tx.Rollback()
-		return -1, err
+		return -1, errors.WithStack(err)
 	}
 
 	stmt, err = tx.Prepare(insertCommandHistorySql)
 
 	if err != nil {
 		_ = tx.Rollback()
-		return -1, err
+		return -1, errors.WithStack(err)
 	}
 
 	_, err = stmt.Exec(id, statusId, statusId, now)
@@ -364,13 +364,13 @@ func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId 
 	if err != nil {
 		_ = stmt.Close()
 		_ = tx.Rollback()
-		return -1, err
+		return -1, errors.WithStack(err)
 	}
 
 	err = tx.Commit()
 
 	if err != nil {
-		return -1, err
+		return -1, errors.WithStack(err)
 	}
 
 	return id, nil
@@ -381,61 +381,61 @@ func LoadDictionaries(db *sql.DB) (*dic.Dictionaries, error) {
 	exchanges, err := loadExchanges(db)
 
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	if exchanges.Size() == 0 {
-		return nil, errors.New("exchanges dictionary is empty")
+		return nil, errors.New("Inconsistent DB schema! 'exchanges' dictionary is empty")
 	}
 
 	directions, err := loadDirections(db)
 
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	if directions.Size() == 0 {
-		return nil, errors.New("directions dictionary is empty")
+		return nil, errors.New("Inconsistent DB schema! 'directions' dictionary is empty")
 	}
 
 	orderTypes, err := loadOrderTypes(db)
 
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	if orderTypes.Size() == 0 {
-		return nil, errors.New("orderTypes dictionary is empty")
+		return nil, errors.New("Inconsistent DB schema! 'orderTypes' dictionary is empty")
 	}
 
 	timeInForce, err := loadTimeInForce(db)
 
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	if timeInForce.Size() == 0 {
-		return nil, errors.New("timeInForce dictionary is empty")
+		return nil, errors.New("Inconsistent DB schema! 'timeInForce' dictionary is empty")
 	}
 
 	executionTypes, err := loadExecutionTypes(db)
 
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	if executionTypes.Size() == 0 {
-		return nil, errors.New("executionTypes dictionary is empty")
+		return nil, errors.New("Inconsistent DB schema! 'executionTypes' dictionary is empty")
 	}
 
 	executionStatuses, err := loadExecutionStatuses(db)
 
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	if executionStatuses.Size() == 0 {
-		return nil, errors.New("executionStatuses dictionary is empty")
+		return nil, errors.New("Inconsistent DB schema! 'executionStatuses' dictionary is empty")
 	}
 
 	return dic.NewDictionaries(exchanges, directions, orderTypes, timeInForce, executionTypes, executionStatuses), nil
@@ -470,14 +470,14 @@ func loadDictionary(db *sql.DB, sqlValue string) (*bimap.BiMap, error) {
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: true})
 
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	rows, err := tx.Query(sqlValue)
 
 	if err != nil {
 		_ = tx.Rollback()
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	var (
@@ -494,7 +494,7 @@ func loadDictionary(db *sql.DB, sqlValue string) (*bimap.BiMap, error) {
 		if err != nil {
 			_ = rows.Close()
 			_ = tx.Rollback()
-			return nil, err
+			return nil, errors.WithStack(err)
 		}
 
 		biMap.Insert(id, name)
@@ -503,20 +503,20 @@ func loadDictionary(db *sql.DB, sqlValue string) (*bimap.BiMap, error) {
 	if err = rows.Err(); err != nil {
 		_ = rows.Close()
 		_ = tx.Rollback()
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	err = rows.Close()
 
 	if err != nil {
 		_ = tx.Rollback()
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	err = tx.Commit()
 
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	biMap.MakeImmutable()
