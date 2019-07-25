@@ -1,7 +1,9 @@
 package gin
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/go-errors/errors"
 	log "github.com/sirupsen/logrus"
 	con "msq.ai/constants"
 	comd "msq.ai/data/cmd"
@@ -18,6 +20,14 @@ import (
 func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExecution int) {
 
 	ctxLog := log.WithFields(log.Fields{"id": "GinRestService"})
+
+	logErrWithST := func(msg string, err error) {
+		ctxLog.WithField("stacktrace", fmt.Sprintf("%+v", err.(*errors.Error).ErrorStack())).Error(msg)
+	}
+
+	logErr := func(msg string) {
+		ctxLog.Error(msg)
+	}
 
 	delta := time.Duration(timeForExecution) * time.Second
 
@@ -59,11 +69,12 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 		if err != nil {
 
-			ctxLog.Error("Cannot parse id ["+idVal+"]", err)
+			logErrWithST("Cannot parse id ["+idVal+"]", err)
 
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Wrong command 'id' [" + idVal + "]",
 			})
+
 			return
 		}
 
@@ -73,18 +84,23 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 		if err != nil {
 
-			ctxLog.Error("Cannot LoadCommandById ["+idVal+"] ", err)
+			logErrWithST("Cannot LoadCommandById ["+idVal+"] ", err)
 
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Cannot LoadCommandById [" + idVal + "] ",
 			})
+
 			return
 		}
 
 		if command == nil {
+
+			logErr("Not found Command with Id [" + idVal + "] ")
+
 			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
 				"error": "Not found Command with Id [" + idVal + "] ",
 			})
+
 			return
 		}
 
@@ -100,9 +116,13 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 		cmd := c.PostFormMap("cmd")
 
 		if cmd == nil || len(cmd) == 0 {
+
+			logErr("Absent PostFormMap 'cmd' ")
+
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Absent PostFormMap 'cmd' ",
 			})
+
 			return
 		}
 
@@ -119,9 +139,13 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 		ctxLog.Trace("exchangeId [", exchangeId, "]")
 
 		if exchangeId < 0 {
+
+			logErr("Wrong 'exchange' parameter [" + exchangeVal + "]")
+
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Wrong 'exchange' parameter [" + exchangeVal + "]",
 			})
+
 			return
 		}
 
@@ -132,9 +156,13 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 		ctxLog.Trace("instrument [", instrumentVal, "]")
 
 		if len(instrumentVal) <= 1 {
+
+			logErr("Wrong 'instrument' parameter [" + instrumentVal + "]")
+
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Wrong 'instrument' parameter [" + instrumentVal + "]",
 			})
+
 			return
 		}
 
@@ -149,9 +177,13 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 		ctxLog.Trace("directionId [", directionId, "]")
 
 		if directionId < 0 {
+
+			logErr("Wrong 'direction' parameter [" + directionVal + "]")
+
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Wrong 'direction' parameter [" + directionVal + "]",
 			})
+
 			return
 		}
 
@@ -166,9 +198,13 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 		ctxLog.Trace("orderTypeId [", orderTypeId, "]")
 
 		if orderTypeId < 0 {
+
+			logErr("Wrong 'order_type' parameter [" + orderTypeVal + "]")
+
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Wrong 'order_type' parameter [" + orderTypeVal + "]",
 			})
+
 			return
 		}
 
@@ -185,20 +221,26 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 			limitPrice, err = strconv.ParseFloat(limitPriceVal, 64)
 
 			if err != nil {
-				ctxLog.Error("Cannot parse limit_price ["+limitPriceVal+"]", err)
+
+				logErrWithST("Cannot parse limit_price ["+limitPriceVal+"]", err)
 
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 					"error": "Wrong 'limit_price' parameter [" + limitPriceVal + "]",
 				})
+
 				return
 			}
 
 			ctxLog.Trace("limit_price [", limitPrice, "]")
 
 			if math.IsZero(limitPrice) || limitPrice < 0 {
+
+				logErr("Wrong 'limit_price' parameter [" + limitPriceVal + "]")
+
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 					"error": "Wrong 'limit_price' parameter [" + limitPriceVal + "]",
 				})
+
 				return
 			}
 		}
@@ -212,20 +254,26 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 		amount, err := strconv.ParseFloat(amountVal, 64)
 
 		if err != nil {
-			ctxLog.Error("Cannot parse amount ["+amountVal+"]", err)
+
+			logErrWithST("Cannot parse amount ["+amountVal+"]", err)
 
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Wrong 'amount' parameter [" + amountVal + "]",
 			})
+
 			return
 		}
 
 		ctxLog.Trace("amount [", amount, "]")
 
 		if math.IsZero(amount) || amount < 0 {
+
+			logErr("Wrong 'amount' parameter [" + amountVal + "]")
+
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Wrong 'amount' parameter [" + amountVal + "]",
 			})
+
 			return
 		}
 
@@ -240,9 +288,13 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 		ctxLog.Trace("executionTypeId [", executionTypeId, "]")
 
 		if executionTypeId < 0 {
+
+			logErr("Wrong 'execution_type' parameter [" + executionTypeVal + "]")
+
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Wrong 'execution_type' parameter [" + executionTypeVal + "]",
 			})
+
 			return
 		}
 
@@ -261,9 +313,13 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 		accountId, err := strconv.ParseInt(accountIdVal, 10, 64)
 
 		if err != nil {
+
+			logErr("Wrong 'account_id' parameter [" + accountIdVal + "]")
+
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Wrong 'account_id' parameter [" + accountIdVal + "]",
 			})
+
 			return
 		}
 
@@ -276,9 +332,13 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 		ctxLog.Trace("api_key [", apiKey, "]")
 
 		if len(apiKey) < 1 {
+
+			logErr("Wrong 'api_key' parameter [" + apiKey + "]")
+
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Wrong 'api_key' parameter [" + apiKey + "]",
 			})
+
 			return
 		}
 
@@ -291,9 +351,13 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 		ctxLog.Trace("secret_key [", secretKey, "]")
 
 		if len(secretKey) < 1 {
+
+			logErr("Wrong 'secret_key' parameter [" + secretKey + "]")
+
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Wrong 'secret_key' parameter [" + secretKey + "]",
 			})
+
 			return
 		}
 
@@ -306,9 +370,13 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 		ctxLog.Trace("finger_print [", fingerPrint, "]")
 
 		if len(fingerPrint) < 1 {
+
+			logErr("Wrong 'finger_print' parameter [" + fingerPrint + "]")
+
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": "Wrong 'finger_print' parameter [" + fingerPrint + "]",
 			})
+
 			return
 		}
 
@@ -324,6 +392,9 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 			future, refPositionIdVal, now, accountId, apiKey, secretKey, fingerPrint)
 
 		if err != nil {
+
+			logErrWithST("Cannot insert command into DB", err)
+
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 				"error": "Cannot insert command into DB [" + err.Error() + "]",
 			})
