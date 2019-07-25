@@ -1,6 +1,8 @@
 package coordinator
 
 import (
+	"fmt"
+	"github.com/go-errors/errors"
 	log "github.com/sirupsen/logrus"
 	"msq.ai/connectors/proto"
 	"msq.ai/constants"
@@ -8,10 +10,11 @@ import (
 	"msq.ai/db/postgres/dao"
 	dic "msq.ai/db/postgres/dictionaries"
 	pgh "msq.ai/db/postgres/helper"
+	"sync/atomic"
 	"time"
 )
 
-const limit = 1 // TODO
+const limit = 1
 
 func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *proto.ExecRequest, in <-chan *proto.ExecResponse,
 	dump chan<- *proto.ExecResponse, exchangeId int16, connectorId int16) {
@@ -28,38 +31,13 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 		ctxLog.Fatal("ExecResponse channel is nil !")
 	}
 
-	//------------------------------------------------------------------------------------------------------------------
+	logErrWithST := func(msg string, err error) {
+		ctxLog.WithField("stacktrace", fmt.Sprintf("%+v", err.(*errors.Error).ErrorStack())).Error(msg)
+	}
 
-	//tradeExchange := func(raw *cmd.RawCommand) {
-	//
-	//	incId()
-	//
-	//	request := &proto.ExecRequest{Id: id, What: proto.ExecRequestTrade, Cmd: raw}
-	//
-	//	out <- request
-	//
-	//	response := <-in
-	//
-	//	if response == nil {
-	//		ctxLog.Fatal("Protocol violation! ExecResponse is nil")
-	//		return
-	//	}
-	//
-	//	if response.Id != request.Id {
-	//		ctxLog.Fatal("Protocol violation! response.Id doesn't equal request.Id")
-	//	}
-	//
-	//	if response.Status == proto.ExecResponseStatusOk {
-	//		prevOpTime = time.Now()
-	//		log.Trace("Trade operation successfully finished")
-	//	} else if response.Status == proto.ExecResponseStatusError {
-	//		log.Info("Exchange Trade error ! ", response.Description)
-	//	} else {
-	//		ctxLog.Fatal("Protocol violation! Trade response has unknown status")
-	//	}
-	//
-	//	dump <- response
-	//}
+	var sending uint32 = 0
+
+	//------------------------------------------------------------------------------------------------------------------
 
 	go func() {
 
@@ -77,9 +55,11 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 			response := <-in
 
+			atomic.AddUint32(&sending, -1)
+
 			ctxLog.Trace("Dump execution result to DB ", response)
 
-			// TODO !!!!!!!!!!!!!!!!!!
+			dump <- response
 		}
 
 	}()
@@ -108,7 +88,7 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 			result, err := dao.TryGetCommandForExecution(db, exchangeId, connectorId, time.Now().Add(future), statusCreatedId, statusExecutingId, limit)
 
 			if err != nil {
-				ctxLog.Error("dbTryGetCommandForExecution error ! ", err)
+				logErrWithST("dbTryGetCommandForExecution error ! ", err)
 				time.Sleep(5 * time.Second)
 				return nil
 			}
@@ -123,22 +103,27 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 		for {
 
-			// TODO check size executed requests
+			s := atomic.LoadUint32(&sending)
 
-			command = dbTryGetCommandForExecution()
+			if s == 0 {
 
-			if command != nil {
+				command = dbTryGetCommandForExecution()
 
-				raw = cmd.ToRaw(command, dictionaries)
+				if command != nil {
 
-				ctxLog.Info("Just got new command for execution", raw)
+					raw = cmd.ToRaw(command, dictionaries)
 
-				//TODO
+					ctxLog.Trace("New command for execution", raw)
 
-			} else {
+					atomic.AddUint32(&sending, 1)
 
-				time.Sleep(250 * time.Millisecond)
+					out <- &proto.ExecRequest{What: proto.ExecuteCmd, Cmd: raw}
+
+					continue
+				}
 			}
+
+			time.Sleep(250 * time.Millisecond)
 		}
 
 	}()

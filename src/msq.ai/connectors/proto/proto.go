@@ -2,27 +2,27 @@ package proto
 
 import "msq.ai/data/cmd"
 
-const ExecRequestCheckConnection = 1
-const ExecRequestTrade = 2
+type ExecType uint32
 
-const ExecResponseStatusOk = 1
-const ExecResponseStatusError = 2
+const (
+	ExecuteCmd ExecType = iota
+	CheckCmd
+)
 
-// GET_STATUS, TRADE, CHECK_CONNECTION
+type Status uint32
+
+const (
+	StatusError Status = iota
+	StatusOk
+)
 
 type ExecRequest struct {
-	Id   int64
-	What int16
+	What ExecType
 	Cmd  *cmd.RawCommand
 }
 
 type ExecResponse struct {
-	Id          int64
-	Status      int16
+	Status      Status
 	Description string
-
-	// STATUS
-	// RESULT
-	// ERROR
-
+	OriginCmd   *cmd.RawCommand
 }

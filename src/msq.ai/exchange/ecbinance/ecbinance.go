@@ -26,31 +26,6 @@ func RunBinanceConnector(dictionaries *dic.Dictionaries, in <-chan *proto.ExecRe
 
 	//client := binance.NewClient(apiKey, secretKey)
 
-	var request *proto.ExecRequest
-
-	//------------------------------------------------------------------------------------------------------------------
-
-	//checkConnection := func(request *proto.ExecRequest) {
-	//
-	//	var response = proto.ExecResponse{Id: request.Id}
-	//
-	//	_, err := client.NewListPricesService().Do(context.Background())
-	//
-	//	if err != nil {
-	//		ctxLog.Error("checkConnection error ", err)
-	//		response.Description = err.Error()
-	//		response.Status = proto.ExecResponseStatusError
-	//	} else {
-	//		//for _, p := range prices {
-	//		//	log.Trace(p)
-	//		//}
-	//
-	//		response.Status = proto.ExecResponseStatusOk
-	//	}
-	//
-	//	out <- &response
-	//}
-
 	//------------------------------------------------------------------------------------------------------------------
 
 	//trade := func(request *proto.ExecRequest) {
@@ -117,6 +92,8 @@ func RunBinanceConnector(dictionaries *dic.Dictionaries, in <-chan *proto.ExecRe
 
 	go func() {
 
+		var request *proto.ExecRequest
+
 		for {
 
 			request = <-in
@@ -125,13 +102,11 @@ func RunBinanceConnector(dictionaries *dic.Dictionaries, in <-chan *proto.ExecRe
 				ctxLog.Fatal("Protocol violation! ExecRequest is nil")
 			}
 
-			//if request.What == proto.ExecRequestCheckConnection {
-			//	checkConnection(request)
-			//} else if request.What == proto.ExecRequestTrade {
-			//	trade(request)
-			//} else {
-			//	ctxLog.Fatal("Protocol violation! ExecRequest with wrong type ! ", request)
-			//}
+			ctxLog.Trace("Request for sending to Binance", request)
+
+			// TODO send
+
+			out <- &proto.ExecResponse{OriginCmd: request.Cmd, Status: proto.StatusOk}
 		}
 	}()
 
