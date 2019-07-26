@@ -5,6 +5,7 @@ import (
 	prop "github.com/magiconair/properties"
 	log "github.com/sirupsen/logrus"
 	cord "msq.ai/connectors/coordinator"
+	"msq.ai/connectors/dumper"
 	"msq.ai/connectors/proto"
 	"msq.ai/constants"
 	"msq.ai/db/postgres/dao"
@@ -73,9 +74,13 @@ func main() {
 
 	requests := make(chan *proto.ExecRequest)
 	responses := make(chan *proto.ExecResponse)
-	dump := make(chan *proto.ExecResponse, 10) // TODO
+	dump := make(chan *proto.ExecResponse)
 
 	ecbinance.RunBinanceConnector(dictionaries, requests, responses)
+
+	//----------------------------------------- start dumper ------------------------------------------------------
+
+	dumper.RunDumper(url, dictionaries, responses, dump)
 
 	//----------------------------------------- start coordinator ------------------------------------------------------
 
@@ -93,15 +98,9 @@ func main() {
 		ctxLog.Fatal("Illegal connectorId ! ", connectorId)
 	}
 
-	cord.RunCoordinator(url, dictionaries, requests, responses, dump, exchangeId, connectorId)
-
-	//----------------------------------------- start dumper ------------------------------------------------------
-
-	// TODO
+	cord.RunCoordinator(url, dictionaries, requests, dump, exchangeId, connectorId)
 
 	//------------------------------------------------------------------------------------------------------------------
-
-	// TODO perform some statistic calculation and print, send , something, ..... XZ
 
 	for {
 		time.Sleep(1 * time.Second)

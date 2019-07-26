@@ -16,8 +16,7 @@ import (
 
 const limit = 1
 
-func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *proto.ExecRequest, in <-chan *proto.ExecResponse,
-	dump chan<- *proto.ExecResponse, exchangeId int16, connectorId int16) {
+func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *proto.ExecRequest, in <-chan *proto.ExecResponse, exchangeId int16, connectorId int16) {
 
 	ctxLog := log.WithFields(log.Fields{"id": "Coordinator"})
 
@@ -52,16 +51,12 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 		db.SetConnMaxLifetime(time.Hour)
 
 		for {
-
 			response := <-in
 
-			atomic.AddUint32(&sending, -1)
+			atomic.AddUint32(&sending, ^uint32(0))
 
-			ctxLog.Trace("Dump execution result to DB ", response)
-
-			dump <- response
+			ctxLog.Trace("Finished execution", response)
 		}
-
 	}()
 
 	//------------------------------------------------------------------------------------------------------------------
