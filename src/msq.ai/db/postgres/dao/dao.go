@@ -26,8 +26,8 @@ const insertCommandSql = "INSERT INTO execution (exchange_id, instrument_name, d
 	"amount, status_id, execution_type_id, execute_till_time, ref_position_id, update_timestamp, account_id, api_key, secret_key, " +
 	"finger_print) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id"
 
-const insertCommandHistorySql = "INSERT INTO execution_history (execution_id, status_from_id, status_to_id, timestamp) " +
-	"VALUES ($1, $2, $3, $4)"
+const insertCommandHistorySql = "INSERT INTO execution_history (execution_id, status_from_id, status_to_id, timestamp, description) " +
+	"VALUES ($1, $2, $3, $4, $5)"
 
 const selectCommandSql = "SELECT id, exchange_id, instrument_name, direction_id, order_type_id, limit_price, amount, " +
 	"status_id, connector_id, execution_type_id,execute_till_time, ref_position_id, time_in_force_id, update_timestamp, account_id, " +
@@ -40,10 +40,65 @@ const tryGetCommandForExecutionSql = selectCommandSql + " WHERE exchange_id = $1
 
 const updateCommandStatusByIdSql = "UPDATE execution SET status_id = $1, connector_id = $2, update_timestamp = $3 WHERE id = $4"
 
-func UpdateErrorExecution(db *sql.DB, currentStatusId int16, newStatusId int16, now time.Time) error {
+func UpdateErrorExecution(db *sql.DB, executionId int64, connectorId int16, currentStatusId int16, newStatusId int16, description string) error {
 
-	// TODO execution [status_id,update_timestamp,description]
-	// TODO execution_history [execution_id, status_from_id, status_to_id, timestamp, description]
+	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
+
+	if err != nil {
+		return errors.New(err)
+	}
+
+	stmt, err := tx.Prepare(updateCommandStatusByIdSql)
+
+	if err != nil {
+		_ = tx.Rollback()
+		return errors.New(err)
+	}
+
+	now := time.Now()
+
+	_, err = stmt.Exec(newStatusId, connectorId, now, executionId)
+
+	if err != nil {
+		_ = stmt.Close()
+		_ = tx.Rollback()
+		return errors.New(err)
+	}
+
+	err = stmt.Close()
+
+	if err != nil {
+		_ = tx.Rollback()
+		return errors.New(err)
+	}
+
+	stmt, err = tx.Prepare(insertCommandHistorySql)
+
+	if err != nil {
+		_ = tx.Rollback()
+		return errors.New(err)
+	}
+
+	_, err = stmt.Exec(executionId, currentStatusId, newStatusId, now, nullString(description))
+
+	if err != nil {
+		_ = stmt.Close()
+		_ = tx.Rollback()
+		return errors.New(err)
+	}
+
+	err = stmt.Close()
+
+	if err != nil {
+		_ = tx.Rollback()
+		return errors.New(err)
+	}
+
+	err = tx.Commit()
+
+	if err != nil {
+		return errors.New(err)
+	}
 
 	return nil
 }
@@ -133,6 +188,13 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 		return nil, errors.New(err)
 	}
 
+	err = stmt.Close()
+
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, errors.New(err)
+	}
+
 	stmt, err = tx.Prepare(insertCommandHistorySql)
 
 	if err != nil {
@@ -140,10 +202,17 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 		return nil, errors.New(err)
 	}
 
-	_, err = stmt.Exec(command.Id, statusCreatedId, statusExecutingId, now)
+	_, err = stmt.Exec(command.Id, statusCreatedId, statusExecutingId, now, sql.NullString{Valid: false})
 
 	if err != nil {
 		_ = stmt.Close()
+		_ = tx.Rollback()
+		return nil, errors.New(err)
+	}
+
+	err = stmt.Close()
+
+	if err != nil {
 		_ = tx.Rollback()
 		return nil, errors.New(err)
 	}
@@ -153,6 +222,9 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 	if err != nil {
 		return nil, errors.New(err)
 	}
+
+	command.ConnectorId = int64(conId)
+	command.StatusId = statusExecutingId
 
 	return &command, nil
 }
@@ -345,10 +417,17 @@ func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId 
 		return -1, errors.New(err)
 	}
 
-	_, err = stmt.Exec(id, statusId, statusId, now)
+	_, err = stmt.Exec(id, statusId, statusId, now, sql.NullString{Valid: false})
 
 	if err != nil {
 		_ = stmt.Close()
+		_ = tx.Rollback()
+		return -1, errors.New(err)
+	}
+
+	err = stmt.Close()
+
+	if err != nil {
 		_ = tx.Rollback()
 		return -1, errors.New(err)
 	}

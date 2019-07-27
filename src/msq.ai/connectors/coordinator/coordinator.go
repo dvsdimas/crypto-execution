@@ -112,7 +112,7 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 					atomic.AddUint32(&sending, 1)
 
-					out <- &proto.ExecRequest{What: proto.ExecuteCmd, Cmd: raw}
+					out <- &proto.ExecRequest{What: proto.ExecuteCmd, RawCmd: raw, Cmd: command}
 
 					continue
 				}

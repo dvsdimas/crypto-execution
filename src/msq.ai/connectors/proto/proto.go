@@ -17,13 +17,15 @@ const (
 )
 
 type ExecRequest struct {
-	What ExecType
-	Cmd  *cmd.RawCommand
+	What   ExecType
+	RawCmd *cmd.RawCommand
+	Cmd    *cmd.Command
 }
 
 type ExecResponse struct {
-	Status      Status
-	Description string
-	OriginCmd   *cmd.RawCommand
-	Order       *cmd.RawOrder
+	Status       Status
+	Description  string
+	OriginRawCmd *cmd.RawCommand
+	OriginCmd    *cmd.Command
+	Order        *cmd.RawOrder
 }

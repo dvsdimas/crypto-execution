@@ -18,3 +18,4 @@ const TimeInForceGtcName string = "GTC"
 
 const ExecutionStatusCreatedName string = "CREATED"
 const ExecutionStatusExecutingName string = "EXECUTING"
+const ExecutionStatusErrorName string = "ERROR"

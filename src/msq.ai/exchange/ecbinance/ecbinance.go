@@ -61,14 +61,14 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 			return nil
 		}
 
-		c := request.Cmd
+		c := request.RawCmd
 
 		if c == nil {
 			ctxLog.Fatal("Protocol violation! ExecRequest Trade with empty cmd ! ", request)
 			return nil
 		}
 
-		var response = proto.ExecResponse{OriginCmd: c}
+		var response = proto.ExecResponse{OriginRawCmd: c, OriginCmd: request.Cmd}
 
 		client := binance.NewClient(c.ApiKey, c.SecretKey)
 
@@ -108,7 +108,7 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 
 		order, err := orderService.Do(context.Background())
 
-		ctxLog.Trace("Order from Binance ", order)
+		ctxLog.Trace("Order from Binance ", orderToString(order))
 
 		if err != nil {
 			ctxLog.Error("Trade error ", err)
@@ -116,8 +116,6 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 			response.Status = proto.StatusError
 			return &response
 		}
-
-		response.Description = orderToString(order) // TODO really need it ???
 
 		if c.OrderType == constants.OrderTypeMarketName {
 
