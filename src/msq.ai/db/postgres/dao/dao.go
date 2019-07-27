@@ -31,7 +31,7 @@ const insertCommandHistorySql = "INSERT INTO execution_history (execution_id, st
 
 const selectCommandSql = "SELECT id, exchange_id, instrument_name, direction_id, order_type_id, limit_price, amount, " +
 	"status_id, connector_id, execution_type_id,execute_till_time, ref_position_id, time_in_force_id, update_timestamp, account_id, " +
-	"description, api_key, secret_key, finger_print FROM execution"
+	"api_key, secret_key, finger_print FROM execution"
 
 const loadCommandByIdSql = selectCommandSql + " WHERE id = $1"
 
@@ -39,6 +39,14 @@ const tryGetCommandForExecutionSql = selectCommandSql + " WHERE exchange_id = $1
 	"AND execute_till_time > $3 FOR UPDATE LIMIT $4"
 
 const updateCommandStatusByIdSql = "UPDATE execution SET status_id = $1, connector_id = $2, update_timestamp = $3 WHERE id = $4"
+
+func UpdateErrorExecution(db *sql.DB, currentStatusId int16, newStatusId int16, now time.Time) error {
+
+	// TODO execution [status_id,update_timestamp,description]
+	// TODO execution_history [execution_id, status_from_id, status_to_id, timestamp, description]
+
+	return nil
+}
 
 func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validTimeTo time.Time, statusCreatedId int16,
 	statusExecutingId int16, limit int16) (*cmd.Command, error) {
@@ -62,15 +70,14 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 		limitPrice    sql.NullFloat64
 		connectorId   sql.NullInt64
 		refPositionId sql.NullString
-		description   sql.NullString
 
 		command cmd.Command
 	)
 
 	err = row.Scan(&command.Id, &command.ExchangeId, &command.InstrumentName, &command.DirectionId, &command.OrderTypeId,
 		&limitPrice, &command.Amount, &command.StatusId, &connectorId, &command.ExecutionTypeId, &command.ExecuteTillTime,
-		&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &description, &command.ApiKey,
-		&command.SecretKey, &command.FingerPrint)
+		&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &command.ApiKey, &command.SecretKey,
+		&command.FingerPrint)
 
 	if err != nil {
 
@@ -100,12 +107,6 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 		command.RefPositionId = refPositionId.String
 	} else {
 		command.RefPositionId = ""
-	}
-
-	if description.Valid {
-		command.Description = description.String
-	} else {
-		command.Description = ""
 	}
 
 	err = stmt.Close()
@@ -177,15 +178,14 @@ func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) {
 		limitPrice    sql.NullFloat64
 		connectorId   sql.NullInt64
 		refPositionId sql.NullString
-		description   sql.NullString
 
 		command cmd.Command
 	)
 
 	err = row.Scan(&command.Id, &command.ExchangeId, &command.InstrumentName, &command.DirectionId, &command.OrderTypeId,
 		&limitPrice, &command.Amount, &command.StatusId, &connectorId, &command.ExecutionTypeId, &command.ExecuteTillTime,
-		&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &description, &command.ApiKey,
-		&command.SecretKey, &command.FingerPrint)
+		&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &command.ApiKey, &command.SecretKey,
+		&command.FingerPrint)
 
 	if err != nil {
 		_ = stmt.Close()
@@ -214,12 +214,6 @@ func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) {
 		command.RefPositionId = refPositionId.String
 	} else {
 		command.RefPositionId = ""
-	}
-
-	if description.Valid {
-		command.Description = description.String
-	} else {
-		command.Description = ""
 	}
 
 	err = stmt.Close()

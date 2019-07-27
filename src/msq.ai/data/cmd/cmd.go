@@ -23,7 +23,6 @@ type Command struct {
 	TimeInForceId   int16
 	UpdateTimestamp time.Time
 	AccountId       int64
-	Description     string
 	ApiKey          string
 	SecretKey       string
 	FingerPrint     string
@@ -45,7 +44,6 @@ type RawCommand struct {
 	TimeInForce     string
 	UpdateTime      string
 	AccountId       string
-	Description     string
 	ApiKey          string
 	SecretKey       string
 	FingerPrint     string
@@ -70,7 +68,6 @@ func ToRaw(cmd *Command, dictionaries *dic.Dictionaries) *RawCommand {
 	raw.TimeInForce = dictionaries.TimeInForces().GetNameById(cmd.TimeInForceId)
 	raw.UpdateTime = cmd.UpdateTimestamp.Format(time.RFC3339)
 	raw.AccountId = strconv.FormatInt(cmd.AccountId, 10)
-	raw.Description = cmd.Description
 	raw.ApiKey = cmd.ApiKey
 	raw.SecretKey = cmd.SecretKey
 	raw.FingerPrint = cmd.FingerPrint
