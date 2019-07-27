@@ -42,6 +42,7 @@ CREATE TABLE "time_in_force" (
 );
 
 INSERT INTO "time_in_force" ("id", "type") VALUES (1, 'FOK');
+INSERT INTO "time_in_force" ("id", "type") VALUES (2, 'GTC');
 
 
 CREATE TABLE "execution_type" (
@@ -83,7 +84,7 @@ CREATE TABLE "execution" (
     execution_type_id SMALLINT NOT NULL,
     execute_till_time TIMESTAMP NOT NULL,
     ref_position_id   TEXT DEFAULT NULL,
-    time_in_force_id  SMALLINT NOT NULL DEFAULT 1,
+    time_in_force_id  SMALLINT NOT NULL,
     update_timestamp  TIMESTAMP NOT NULL,
     account_id        BIGINT NOT NULL,
     api_key           TEXT NOT NULL,

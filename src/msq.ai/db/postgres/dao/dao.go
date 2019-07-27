@@ -22,9 +22,9 @@ const loadExecutionStatusSql = "SELECT id, value FROM execution_status"
 
 const getCommandIdByFingerPrintSql = "SELECT id FROM execution WHERE finger_print = $1"
 
-const insertCommandSql = "INSERT INTO execution (exchange_id, instrument_name, direction_id, order_type_id, limit_price," +
+const insertCommandSql = "INSERT INTO execution (exchange_id, instrument_name, direction_id, order_type_id, limit_price, time_in_force_id, " +
 	"amount, status_id, execution_type_id, execute_till_time, ref_position_id, update_timestamp, account_id, api_key, secret_key, " +
-	"finger_print) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id"
+	"finger_print) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id"
 
 const insertCommandHistorySql = "INSERT INTO execution_history (execution_id, status_from_id, status_to_id, timestamp) " +
 	"VALUES ($1, $2, $3, $4)"
@@ -308,7 +308,7 @@ func getCommandIdByFingerPrint(db *sql.DB, fingerPrint string) (int64, error) {
 	return id, nil
 }
 
-func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId int16, orderTypeId int16, limitPrice float64,
+func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId int16, orderTypeId int16, limitPrice float64, timeInForceId int16,
 	amount float64, statusId int16, executionTypeId int16, future time.Time, refPositionIdVal string, now time.Time, accountId int64,
 	apiKey string, secretKey string, fingerPrint string) (int64, error) {
 
@@ -325,7 +325,7 @@ func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId 
 		return -1, errors.New(err)
 	}
 
-	row := stmt.QueryRow(exchangeId, instrument, directionId, orderTypeId, nullLimitPrice(limitPrice), amount, statusId,
+	row := stmt.QueryRow(exchangeId, instrument, directionId, orderTypeId, nullLimitPrice(limitPrice), timeInForceId, amount, statusId,
 		executionTypeId, future, nullString(refPositionIdVal), now, accountId, apiKey, secretKey, fingerPrint)
 
 	var id int64

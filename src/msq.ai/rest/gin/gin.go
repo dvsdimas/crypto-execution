@@ -48,13 +48,13 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 	}
 
 	dbInsertCommand := func(exchangeId int16, instrumentVal string, directionId int16, orderTypeId int16, limitPrice float64,
-		amount float64, executionTypeId int16, future time.Time, refPositionIdVal string, now time.Time, accountId int64,
-		apiKey string, secretKey string, fingerPrint string) (int64, error) {
+		timeInForce int16, amount float64, executionTypeId int16, future time.Time, refPositionIdVal string, now time.Time,
+		accountId int64, apiKey string, secretKey string, fingerPrint string) (int64, error) {
 
 		statusCreatedId := dictionaries.ExecutionStatuses().GetIdByName(con.ExecutionStatusCreatedName)
 
-		return dao.InsertCommand(db, exchangeId, instrumentVal, directionId, orderTypeId, limitPrice, amount, statusCreatedId,
-			executionTypeId, future, refPositionIdVal, now, accountId, apiKey, secretKey, fingerPrint)
+		return dao.InsertCommand(db, exchangeId, instrumentVal, directionId, orderTypeId, limitPrice, timeInForce, amount,
+			statusCreatedId, executionTypeId, future, refPositionIdVal, now, accountId, apiKey, secretKey, fingerPrint)
 	}
 
 	// curl -X GET localhost:8080/execution/v1/command/25
@@ -109,7 +109,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 	router := gin.Default()
 
-	// curl -X PUT -d "cmd[exchange]=BINANCE&cmd[instrument]=BTT/BTC&cmd[direction]=BUY&cmd[order_type]=MARKET&cmd[amount]=1000&cmd[execution_type]=OPEN&cmd[account_id]=1&cmd[api_key]=JbOl&cmd[secret_key]=xfPip8&cmd[finger_print]=sad" localhost:8080/execution/v1/command/
+	// curl -X PUT -d "cmd[exchange]=BINANCE&cmd[instrument]=BTTBTC&cmd[direction]=SELL&cmd[order_type]=MARKET&cmd[time_in_force]=GTC&cmd[amount]=10000&cmd[execution_type]=OPEN&cmd[account_id]=1&cmd[api_key]=B8U0U&cmd[secret_key]=0abqCy&cmd[finger_print]=1234" localhost:8080/execution/v1/command/
 
 	var handlerPUT = func(c *gin.Context) {
 
@@ -243,6 +243,27 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 				return
 			}
+		}
+
+		//--------------------------------------------------------------------------------------------------------------
+
+		timeInForceVal := strings.ToUpper(cmd["time_in_force"])
+
+		ctxLog.Trace("time_in_force [", timeInForceVal, "]")
+
+		timeInForceId := dictionaries.TimeInForces().GetIdByName(timeInForceVal)
+
+		ctxLog.Trace("timeInForceId [", timeInForceId, "]")
+
+		if timeInForceId < 0 {
+
+			logErr("Wrong 'time_in_force' parameter [" + timeInForceVal + "]")
+
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"error": "Wrong 'time_in_force' parameter [" + timeInForceVal + "]",
+			})
+
+			return
 		}
 
 		//--------------------------------------------------------------------------------------------------------------
@@ -388,8 +409,8 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 		future := now.Add(delta)
 
-		id, err := dbInsertCommand(exchangeId, instrumentVal, directionId, orderTypeId, limitPrice, amount, executionTypeId,
-			future, refPositionIdVal, now, accountId, apiKey, secretKey, fingerPrint)
+		id, err := dbInsertCommand(exchangeId, instrumentVal, directionId, orderTypeId, limitPrice, timeInForceId, amount,
+			executionTypeId, future, refPositionIdVal, now, accountId, apiKey, secretKey, fingerPrint)
 
 		if err != nil {
 
