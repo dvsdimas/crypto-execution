@@ -25,4 +25,5 @@ type ExecResponse struct {
 	Status      Status
 	Description string
 	OriginCmd   *cmd.RawCommand
+	Order       *cmd.RawOrder
 }

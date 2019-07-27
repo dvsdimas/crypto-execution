@@ -7,6 +7,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"msq.ai/connectors/proto"
 	"msq.ai/constants"
+	"msq.ai/data/cmd"
+	"strconv"
 	"sync"
 	"sync/atomic"
 )
@@ -71,7 +73,7 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 		client := binance.NewClient(c.ApiKey, c.SecretKey)
 
 		orderService := client.NewCreateOrderService().Symbol(c.Instrument)
-		//orderService = orderService.NewClientOrderID(c.Id) TODO
+		orderService = orderService.NewClientOrderID(c.Id)
 
 		if c.OrderType == constants.OrderTypeMarketName {
 			orderService = orderService.Type(binance.OrderTypeMarket)
@@ -115,7 +117,7 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 			return &response
 		}
 
-		response.Description = orderToString(order)
+		response.Description = orderToString(order) // TODO really need it ???
 
 		if c.OrderType == constants.OrderTypeMarketName {
 
@@ -129,6 +131,22 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 			// TODO
 		}
 
+		rawOrder := cmd.RawOrder{}
+
+		rawOrder.Symbol = order.Symbol
+		rawOrder.OrderID = strconv.FormatInt(order.OrderID, 10)
+		rawOrder.ClientOrderID = order.ClientOrderID
+		rawOrder.TransactTime = strconv.FormatInt(order.TransactTime, 10)
+		rawOrder.Price = order.Price
+		rawOrder.ExecutedQuantity = order.ExecutedQuantity
+		rawOrder.Status = order.Status
+		rawOrder.TimeInForce = order.TimeInForce
+		rawOrder.Type = order.Type
+		rawOrder.Side = order.Side
+		rawOrder.Commission = order.Fills[0].Commission
+		rawOrder.CommissionAsset = order.Fills[0].CommissionAsset
+
+		response.Order = &rawOrder
 		response.Status = proto.StatusOk
 
 		return &response
@@ -150,7 +168,7 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 			if request.What == proto.ExecuteCmd {
 				response = trade(request)
 			} else {
-				ctxLog.Fatal("Unexpected ExecType", request) // TODO
+				ctxLog.Fatal("Unexpected ExecType", request)
 			}
 
 			ctxLog.Trace("Sent cmd to Binance !")

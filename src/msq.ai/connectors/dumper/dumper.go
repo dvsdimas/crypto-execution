@@ -51,6 +51,10 @@ func RunDumper(dburl string, dictionaries *dic.Dictionaries, in <-chan *proto.Ex
 
 			ctxLog.Trace("Dumped execution result to DB", response)
 
+			if response.Status == proto.StatusOk {
+				ctxLog.Trace("Dumped order", response.Order)
+			}
+
 			// TODO dump
 
 			out <- response

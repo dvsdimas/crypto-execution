@@ -26,7 +26,7 @@ type Command struct {
 	Description     string
 	ApiKey          string
 	SecretKey       string
-	ResultOrderId   string
+	ResultOrderId   string // TODO
 	FingerPrint     string
 }
 
@@ -49,7 +49,7 @@ type RawCommand struct {
 	Description     string
 	ApiKey          string
 	SecretKey       string
-	ResultOrderId   string
+	ResultOrderId   string // TODO
 	FingerPrint     string
 }
 
@@ -75,8 +75,24 @@ func ToRaw(cmd *Command, dictionaries *dic.Dictionaries) *RawCommand {
 	raw.Description = cmd.Description
 	raw.ApiKey = cmd.ApiKey
 	raw.SecretKey = cmd.SecretKey
-	raw.ResultOrderId = cmd.ResultOrderId
+	raw.ResultOrderId = cmd.ResultOrderId // TODO
 	raw.FingerPrint = cmd.FingerPrint
 
 	return &raw
+}
+
+type RawOrder struct {
+	ID               string // ""		 				TODO DB int64
+	Symbol           string // "BTTBTC" 				TODO DB string
+	OrderID          string // 7693572 					TODO DB int64
+	ClientOrderID    string // "F35WUSPdFNQGSB9tGx1g8w" TODO DB int64
+	TransactTime     string // 1564228612661 			TODO DB int64
+	Price            string // "0.00000009"				TODO DB float64
+	ExecutedQuantity string // "10000.00000000"			TODO DB float64
+	Status           string // "FILLED"					TODO DB string
+	TimeInForce      string // "GTC"					TODO DB int16
+	Type             string // "MARKET"					TODO DB int16
+	Side             string // "BUY"					TODO DB int16
+	Commission       string // "10.00000000"			TODO DB	float64
+	CommissionAsset  string // "BTT"					TODO DB string
 }
