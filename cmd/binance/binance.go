@@ -16,7 +16,8 @@ import (
 )
 
 const propertiesFileName string = "binance.properties"
-const execPoolSize = 1 // TODO
+const connectorsExecPoolSize = 100
+const dumperExecPoolSize = 10
 
 func init() {
 
@@ -77,11 +78,11 @@ func main() {
 	responses := make(chan *proto.ExecResponse)
 	dump := make(chan *proto.ExecResponse)
 
-	ecbinance.RunBinanceConnector(requests, responses, execPoolSize)
+	ecbinance.RunBinanceConnector(requests, responses, connectorsExecPoolSize)
 
 	//----------------------------------------- start dumper ------------------------------------------------------
 
-	dumper.RunDumper(url, dictionaries, responses, dump) // TODO execPoolSize
+	dumper.RunDumper(url, dictionaries, responses, dump, dumperExecPoolSize)
 
 	//----------------------------------------- start coordinator ------------------------------------------------------
 

@@ -179,8 +179,6 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 		}
 	}
 
-	//------------------------------------------------------------------------------------------------------------------
-
 	inChannels := make([]chan *proto.ExecRequest, execPoolSize)
 
 	for i := 0; i < execPoolSize; i++ {

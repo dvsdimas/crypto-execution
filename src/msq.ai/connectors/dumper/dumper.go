@@ -5,10 +5,12 @@ import (
 	"msq.ai/connectors/proto"
 	dic "msq.ai/db/postgres/dictionaries"
 	pgh "msq.ai/db/postgres/helper"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
-func RunDumper(dburl string, dictionaries *dic.Dictionaries, in <-chan *proto.ExecResponse, out chan<- *proto.ExecResponse) {
+func RunDumper(dburl string, dictionaries *dic.Dictionaries, in <-chan *proto.ExecResponse, out chan<- *proto.ExecResponse, execPoolSize int) {
 
 	ctxLog := log.WithFields(log.Fields{"id": "Dumper"})
 
@@ -38,26 +40,72 @@ func RunDumper(dburl string, dictionaries *dic.Dictionaries, in <-chan *proto.Ex
 		ctxLog.Fatal("Cannot connect to DB with URL ["+dburl+"] ", err)
 	}
 
-	db.SetMaxIdleConns(1) // TODO
-	db.SetMaxOpenConns(3)
+	db.SetMaxIdleConns(execPoolSize + 1)
+	db.SetMaxOpenConns(execPoolSize + 1)
 	db.SetConnMaxLifetime(time.Hour)
 
 	//------------------------------------------------------------------------------------------------------------------
 
-	go func() {
+	var lockOut = &sync.Mutex{}
+
+	performFunction := func(in <-chan *proto.ExecResponse) {
 
 		for {
 			response := <-in
 
-			ctxLog.Trace("Dumped execution result to DB", response)
+			ctxLog.Trace("Dumping response", response)
 
 			if response.Status == proto.StatusOk {
-				ctxLog.Trace("Dumped order", response.Order)
+				ctxLog.Trace("Dumping order", response.Order)
 			}
 
-			// TODO dump
+			// TODO
 
+			lockOut.Lock()
 			out <- response
+			lockOut.Unlock()
+		}
+	}
+
+	inChannels := make([]chan *proto.ExecResponse, execPoolSize)
+
+	for i := 0; i < execPoolSize; i++ {
+
+		inChannels[i] = make(chan *proto.ExecResponse)
+
+		go performFunction(inChannels[i])
+	}
+
+	//------------------------------------------------------------------------------------------------------------------
+
+	var pointer int32 = 0
+
+	getNextChannel := func() chan<- *proto.ExecResponse {
+
+		p := int(atomic.LoadInt32(&pointer))
+
+		c := inChannels[p]
+
+		if p+1 == execPoolSize {
+			atomic.StoreInt32(&pointer, 0)
+		} else {
+			atomic.AddInt32(&pointer, 1)
+		}
+
+		return c
+	}
+
+	go func() {
+
+		for {
+
+			response := <-in
+
+			if response == nil {
+				ctxLog.Fatal("Protocol violation! ExecRequest is nil")
+			}
+
+			getNextChannel() <- response
 		}
 	}()
 
