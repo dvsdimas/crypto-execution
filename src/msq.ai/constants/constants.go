@@ -14,6 +14,7 @@ const OrderDirectionBuyName string = "BUY"
 const OrderDirectionSellName string = "SELL"
 
 const TimeInForceFokName string = "FOK"
+const TimeInForceGtcName string = "GTC"
 
 const ExecutionStatusCreatedName string = "CREATED"
 const ExecutionStatusExecutingName string = "EXECUTING"

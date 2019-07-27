@@ -2,6 +2,7 @@ package ecbinance
 
 import (
 	"context"
+	"fmt"
 	"github.com/adshao/go-binance"
 	log "github.com/sirupsen/logrus"
 	"msq.ai/connectors/proto"
@@ -9,6 +10,8 @@ import (
 	"sync"
 	"sync/atomic"
 )
+
+const filledValue = "FILLED"
 
 func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse, execPoolSize int) {
 
@@ -34,6 +37,21 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 
 	//------------------------------------------------------------------------------------------------------------------
 
+	orderToString := func(order *binance.CreateOrderResponse) string {
+
+		if order == nil {
+			return "nil"
+		}
+
+		var fill = ""
+
+		if order.Fills != nil && order.Fills[0] != nil {
+			fill = fmt.Sprintf("%+v", order.Fills[0])
+		}
+
+		return fmt.Sprintf("%+v %s", order, fill)
+	}
+
 	trade := func(request *proto.ExecRequest) *proto.ExecResponse {
 
 		if request == nil {
@@ -52,7 +70,8 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 
 		client := binance.NewClient(c.ApiKey, c.SecretKey)
 
-		orderService := client.NewCreateOrderService().Symbol(request.Cmd.Instrument)
+		orderService := client.NewCreateOrderService().Symbol(c.Instrument)
+		//orderService = orderService.NewClientOrderID(c.Id) TODO
 
 		if c.OrderType == constants.OrderTypeMarketName {
 			orderService = orderService.Type(binance.OrderTypeMarket)
@@ -73,11 +92,14 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 			return nil
 		}
 
-		if c.TimeInForce == constants.TimeInForceFokName { // TODO add GTC
-			//orderService = orderService.TimeInForce(binance.TimeInForceFOK)
+		if c.TimeInForce == constants.TimeInForceGtcName {
+			// orderService = orderService.TimeInForce(binance.TimeInForceGTC)
 		} else {
-			ctxLog.Fatal("Protocol violation! ExecRequest wrong Direction with empty cmd ! ", request)
-			return nil
+			msg := "Protocol violation! ExecRequest has wrong TimeInForce. Binance supported only GTC !"
+			ctxLog.Error(msg, request)
+			response.Description = msg
+			response.Status = proto.StatusError
+			return &response
 		}
 
 		orderService = orderService.Quantity(c.Amount)
@@ -90,9 +112,24 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 			ctxLog.Error("Trade error ", err)
 			response.Description = err.Error()
 			response.Status = proto.StatusError
-		} else {
-			response.Status = proto.StatusOk
+			return &response
 		}
+
+		response.Description = orderToString(order)
+
+		if c.OrderType == constants.OrderTypeMarketName {
+
+			if order.Status != filledValue {
+
+				response.Status = proto.StatusError
+				return &response
+			}
+
+		} else { // constants.OrderTypeLimitName
+			// TODO
+		}
+
+		response.Status = proto.StatusOk
 
 		return &response
 	}

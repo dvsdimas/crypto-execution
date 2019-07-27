@@ -65,10 +65,11 @@ CREATE TABLE "execution_status" (
 
 INSERT INTO "execution_status" ("id", "value") VALUES (1, 'CREATED');
 INSERT INTO "execution_status" ("id", "value") VALUES (2, 'EXECUTING');
-INSERT INTO "execution_status" ("id", "value") VALUES (3, 'COMPLETED');
-INSERT INTO "execution_status" ("id", "value") VALUES (4, 'TIMED_OUT');
-INSERT INTO "execution_status" ("id", "value") VALUES (5, 'ERROR');
-INSERT INTO "execution_status" ("id", "value") VALUES (6, 'REJECTED');
+INSERT INTO "execution_status" ("id", "value") VALUES (3, 'SENT');
+INSERT INTO "execution_status" ("id", "value") VALUES (4, 'COMPLETED');
+INSERT INTO "execution_status" ("id", "value") VALUES (5, 'TIMED_OUT');
+INSERT INTO "execution_status" ("id", "value") VALUES (6, 'ERROR');
+INSERT INTO "execution_status" ("id", "value") VALUES (7, 'REJECTED');
 
 
 CREATE TABLE "execution" (
