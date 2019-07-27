@@ -31,7 +31,7 @@ const insertCommandHistorySql = "INSERT INTO execution_history (execution_id, st
 
 const selectCommandSql = "SELECT id, exchange_id, instrument_name, direction_id, order_type_id, limit_price, amount, " +
 	"status_id, connector_id, execution_type_id,execute_till_time, ref_position_id, time_in_force_id, update_timestamp, account_id, " +
-	"description, api_key, secret_key, result_order_id, finger_print FROM execution"
+	"description, api_key, secret_key, finger_print FROM execution"
 
 const loadCommandByIdSql = selectCommandSql + " WHERE id = $1"
 
@@ -63,7 +63,6 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 		connectorId   sql.NullInt64
 		refPositionId sql.NullString
 		description   sql.NullString
-		resultOrderId sql.NullString
 
 		command cmd.Command
 	)
@@ -71,7 +70,7 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 	err = row.Scan(&command.Id, &command.ExchangeId, &command.InstrumentName, &command.DirectionId, &command.OrderTypeId,
 		&limitPrice, &command.Amount, &command.StatusId, &connectorId, &command.ExecutionTypeId, &command.ExecuteTillTime,
 		&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &description, &command.ApiKey,
-		&command.SecretKey, &resultOrderId, &command.FingerPrint)
+		&command.SecretKey, &command.FingerPrint)
 
 	if err != nil {
 
@@ -179,7 +178,6 @@ func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) {
 		connectorId   sql.NullInt64
 		refPositionId sql.NullString
 		description   sql.NullString
-		resultOrderId sql.NullString
 
 		command cmd.Command
 	)
@@ -187,7 +185,7 @@ func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) {
 	err = row.Scan(&command.Id, &command.ExchangeId, &command.InstrumentName, &command.DirectionId, &command.OrderTypeId,
 		&limitPrice, &command.Amount, &command.StatusId, &connectorId, &command.ExecutionTypeId, &command.ExecuteTillTime,
 		&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &description, &command.ApiKey,
-		&command.SecretKey, &resultOrderId, &command.FingerPrint)
+		&command.SecretKey, &command.FingerPrint)
 
 	if err != nil {
 		_ = stmt.Close()
@@ -222,12 +220,6 @@ func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) {
 		command.Description = description.String
 	} else {
 		command.Description = ""
-	}
-
-	if resultOrderId.Valid {
-		command.ResultOrderId = resultOrderId.String
-	} else {
-		command.ResultOrderId = ""
 	}
 
 	err = stmt.Close()

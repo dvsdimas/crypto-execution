@@ -91,7 +91,6 @@ CREATE TABLE "execution" (
     api_key           TEXT NOT NULL,
     secret_key        TEXT NOT NULL,
     description       TEXT DEFAULT NULL,
-    result_order_id   TEXT DEFAULT NULL, -- TODO int64
     finger_print      TEXT NOT NULL,
 
     CONSTRAINT "execution_fk1" FOREIGN KEY ("exchange_id")       REFERENCES "exchange"         ("id"),
