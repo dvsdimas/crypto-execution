@@ -1,8 +1,11 @@
 package ecbinance
 
 import (
+	"context"
+	"github.com/adshao/go-binance"
 	log "github.com/sirupsen/logrus"
 	"msq.ai/connectors/proto"
+	"msq.ai/constants"
 	"sync"
 	"sync/atomic"
 )
@@ -31,6 +34,71 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 
 	//------------------------------------------------------------------------------------------------------------------
 
+	trade := func(request *proto.ExecRequest) *proto.ExecResponse {
+
+		if request == nil {
+			ctxLog.Fatal("Protocol violation! nil ExecRequest")
+			return nil
+		}
+
+		c := request.Cmd
+
+		if c == nil {
+			ctxLog.Fatal("Protocol violation! ExecRequest Trade with empty cmd ! ", request)
+			return nil
+		}
+
+		var response = proto.ExecResponse{OriginCmd: c}
+
+		client := binance.NewClient(c.ApiKey, c.SecretKey)
+
+		orderService := client.NewCreateOrderService().Symbol(request.Cmd.Instrument)
+
+		if c.OrderType == constants.OrderTypeMarketName {
+			orderService = orderService.Type(binance.OrderTypeMarket)
+		} else if c.Direction == constants.OrderTypeLimitName {
+			orderService = orderService.Type(binance.OrderTypeLimit)
+			orderService = orderService.Price(c.LimitPrice)
+		} else {
+			ctxLog.Fatal("Protocol violation! ExecRequest wrong OrderType with empty cmd ! ", request)
+			return nil
+		}
+
+		if c.Direction == constants.OrderDirectionBuyName {
+			orderService = orderService.Side(binance.SideTypeBuy)
+		} else if c.Direction == constants.OrderDirectionSellName {
+			orderService = orderService.Side(binance.SideTypeSell)
+		} else {
+			ctxLog.Fatal("Protocol violation! ExecRequest wrong Direction with empty cmd ! ", request)
+			return nil
+		}
+
+		if c.TimeInForce == constants.TimeInForceFokName { // TODO add GTC
+			//orderService = orderService.TimeInForce(binance.TimeInForceFOK)
+		} else {
+			ctxLog.Fatal("Protocol violation! ExecRequest wrong Direction with empty cmd ! ", request)
+			return nil
+		}
+
+		orderService = orderService.Quantity(c.Amount)
+
+		order, err := orderService.Do(context.Background())
+
+		ctxLog.Trace("Order from Binance ", order)
+
+		if err != nil {
+			ctxLog.Error("Trade error ", err)
+			response.Description = err.Error()
+			response.Status = proto.StatusError
+		} else {
+			response.Status = proto.StatusOk
+		}
+
+		return &response
+	}
+
+	//------------------------------------------------------------------------------------------------------------------
+
 	var lockOut = &sync.Mutex{}
 
 	performFunction := func(in <-chan *proto.ExecRequest) {
@@ -38,13 +106,17 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 		for {
 			request := <-in
 
-			ctxLog.Trace("Sending cmd to Binance .....", request)
+			ctxLog.Trace("Start sending cmd to Binance .....", request)
 
-			// TODO
+			var response *proto.ExecResponse
 
-			ctxLog.Trace("Sent cmd to Binance !!!!!!!!!!!")
+			if request.What == proto.ExecuteCmd {
+				response = trade(request)
+			} else {
+				ctxLog.Fatal("Unexpected ExecType", request) // TODO
+			}
 
-			response := &proto.ExecResponse{OriginCmd: request.Cmd, Status: proto.StatusOk}
+			ctxLog.Trace("Sent cmd to Binance !")
 
 			lockOut.Lock()
 			out <- response
@@ -62,70 +134,6 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 
 		go performFunction(inChannels[i])
 	}
-
-	//client := binance.NewClient(apiKey, secretKey)
-
-	//------------------------------------------------------------------------------------------------------------------
-
-	//trade := func(request *proto.ExecRequest) {
-	//
-	//	var response = proto.ExecResponse{Id: request.Id}
-	//
-	//	c := request.Cmd
-	//
-	//	if c == nil {
-	//		ctxLog.Fatal("Protocol violation! ExecRequest Trade with empty cmd ! ", request)
-	//		return
-	//	}
-	//
-	//	orderService := client.NewCreateOrderService().Symbol(request.Cmd.Instrument)
-	//
-	//	if c.OrderType == constants.OrderTypeMarketName {
-	//		orderService = orderService.Type(binance.OrderTypeMarket)
-	//	} else if c.Direction == constants.OrderTypeLimitName {
-	//		orderService = orderService.Type(binance.OrderTypeLimit)
-	//		orderService = orderService.Price(c.LimitPrice)
-	//	} else {
-	//		ctxLog.Fatal("Protocol violation! ExecRequest wrong OrderType with empty cmd ! ", request)
-	//		return
-	//	}
-	//
-	//	if c.Direction == constants.OrderDirectionBuyName {
-	//		orderService = orderService.Side(binance.SideTypeBuy)
-	//	} else if c.Direction == constants.OrderDirectionSellName {
-	//		orderService = orderService.Side(binance.SideTypeSell)
-	//	} else {
-	//		ctxLog.Fatal("Protocol violation! ExecRequest wrong Direction with empty cmd ! ", request)
-	//		return
-	//	}
-	//
-	//	if c.TimeInForce == constants.TimeInForceFokName { // TODO add GTC
-	//		//orderService = orderService.TimeInForce(binance.TimeInForceFOK)
-	//	} else {
-	//		ctxLog.Fatal("Protocol violation! ExecRequest wrong Direction with empty cmd ! ", request)
-	//		return
-	//	}
-	//
-	//	orderService = orderService.Quantity(c.Amount)
-	//
-	//	order, err := orderService.Do(context.Background())
-	//
-	//	ctxLog.Debug("Order from Binance ", order)
-	//
-	//	if err != nil {
-	//		ctxLog.Error("Trade error ", err)
-	//		response.Description = err.Error()
-	//		response.Status = proto.ExecResponseStatusError
-	//	} else {
-	//		//for _, p := range prices {
-	//		//	log.Trace(p)
-	//		//}
-	//
-	//		response.Status = proto.ExecResponseStatusOk
-	//	}
-	//
-	//	out <- &response
-	//}
 
 	//------------------------------------------------------------------------------------------------------------------
 
