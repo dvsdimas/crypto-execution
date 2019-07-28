@@ -23,9 +23,8 @@ type ExecRequest struct {
 }
 
 type ExecResponse struct {
-	Status       Status
-	Description  string
-	OriginRawCmd *cmd.RawCommand
-	OriginCmd    *cmd.Command
-	Order        *cmd.RawOrder
+	Request     *ExecRequest
+	Status      Status
+	Description string
+	Order       *cmd.RawOrder
 }

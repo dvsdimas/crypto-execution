@@ -68,7 +68,7 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 			return nil
 		}
 
-		var response = proto.ExecResponse{OriginRawCmd: c, OriginCmd: request.Cmd}
+		var response = proto.ExecResponse{Request: request}
 
 		client := binance.NewClient(c.ApiKey, c.SecretKey)
 
@@ -108,14 +108,16 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 
 		order, err := orderService.Do(context.Background())
 
-		ctxLog.Trace("Order from Binance ", orderToString(order))
-
 		if err != nil {
 			ctxLog.Error("Trade error ", err)
 			response.Description = err.Error()
 			response.Status = proto.StatusError
 			return &response
 		}
+
+		response.Description = orderToString(order)
+
+		ctxLog.Trace("Order from Binance ", response.Description)
 
 		if c.OrderType == constants.OrderTypeMarketName {
 

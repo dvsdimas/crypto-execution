@@ -40,7 +40,7 @@ const tryGetCommandForExecutionSql = selectCommandSql + " WHERE exchange_id = $1
 
 const updateCommandStatusByIdSql = "UPDATE execution SET status_id = $1, connector_id = $2, update_timestamp = $3 WHERE id = $4"
 
-func UpdateErrorExecution(db *sql.DB, executionId int64, connectorId int16, currentStatusId int16, newStatusId int16, description string) error {
+func FinishExecution(db *sql.DB, executionId int64, connectorId int16, currentStatusId int16, newStatusId int16, description string) error {
 
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
 
@@ -93,6 +93,8 @@ func UpdateErrorExecution(db *sql.DB, executionId int64, connectorId int16, curr
 		_ = tx.Rollback()
 		return errors.New(err)
 	}
+
+	// TODO insert order
 
 	err = tx.Commit()
 

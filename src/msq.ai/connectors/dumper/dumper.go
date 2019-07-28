@@ -63,33 +63,60 @@ func RunDumper(dburl string, dictionaries *dic.Dictionaries, in <-chan *proto.Ex
 
 	statusExecutingId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusExecutingName)
 	statusErrorId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusErrorName)
+	statusCompletedId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusCompletedName)
 
-	performFunction := func(in <-chan *proto.ExecResponse) {
+	dumpResponse := func(response *proto.ExecResponse) error {
 
-		for {
-			response := <-in
+		ctxLog.Trace("Dumping response", response)
+
+		if response.Request.What == proto.ExecuteCmd {
 
 			ctxLog.Trace("Dumping response", response)
 
 			if response.Status == proto.StatusOk {
-				ctxLog.Trace("Dumping order", response.Order) // TODO
+
+				ctxLog.Trace("Dumping order", response.Order)
+
+				return dao.FinishExecution(db, response.Request.Cmd.Id, int16(response.Request.Cmd.ConnectorId),
+					statusExecutingId, statusCompletedId, response.Description) // TODO add order
+
 			} else if response.Status == proto.StatusError {
 
-				for {
-					err := dao.UpdateErrorExecution(db, response.OriginCmd.Id, int16(response.OriginCmd.ConnectorId),
-						statusExecutingId, statusErrorId, response.Description)
-
-					if err == nil {
-						break
-					}
-
-					logErrWithST("Cannot save response error", err)
-
-					time.Sleep(5 * time.Second)
-				}
+				return dao.FinishExecution(db, response.Request.Cmd.Id, int16(response.Request.Cmd.ConnectorId),
+					statusExecutingId, statusErrorId, response.Description)
 
 			} else {
 				ctxLog.Fatal("Protocol violation! Illegal response status", response)
+			}
+
+		} else if response.Request.What == proto.CheckCmd {
+
+			ctxLog.Fatal("Check CMD !!!!!!!!!!!", response) // TODO
+
+		} else {
+			ctxLog.Fatal("Protocol violation! Illegal request What !!!!", response, response.Request)
+		}
+
+		return nil
+	}
+
+	performFunction := func(in <-chan *proto.ExecResponse) {
+
+		var err error
+
+		for {
+			response := <-in
+
+			for {
+				err = dumpResponse(response)
+
+				if err == nil {
+					break
+				}
+
+				logErrWithST("Cannot save response error", err)
+
+				time.Sleep(5 * time.Second)
 			}
 
 			lockOut.Lock()
