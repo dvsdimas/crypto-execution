@@ -29,6 +29,6 @@ type ExecResponse struct {
 	Request          *ExecRequest
 	Status           Status
 	Description      string
-	Order            *cmd.RawOrder
+	Order            *cmd.Order
 	OutsideExecution time.Duration
 }

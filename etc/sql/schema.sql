@@ -78,7 +78,7 @@ CREATE TABLE "execution" (
     instrument_name   VARCHAR(20) NOT NULL,
     direction_id      SMALLINT NOT NULL,
     order_type_id     SMALLINT NOT NULL,
-    limit_price       NUMERIC(24,10) DEFAULT NULL,
+    limit_price       NUMERIC(24, 10) DEFAULT NULL,
     amount            NUMERIC(24, 10) NOT NULL,
     status_id         SMALLINT NOT NULL,
     connector_id      SMALLINT DEFAULT NULL,
@@ -113,6 +113,20 @@ CREATE TABLE "execution_history" (
     CONSTRAINT "execution_history_fk1" FOREIGN KEY ("execution_id")   REFERENCES "execution" ("id"),
     CONSTRAINT "execution_history_fk2" FOREIGN KEY ("status_from_id") REFERENCES "execution_status" ("id"),
     CONSTRAINT "execution_history_fk3" FOREIGN KEY ("status_to_id")   REFERENCES "execution_status" ("id")
+);
+
+
+CREATE TABLE "orders" (
+    id                BIGSERIAL PRIMARY KEY,
+    external_order_id BIGINT NOT NULL,
+    execution_id      BIGINT NOT NULL,
+    price             NUMERIC(24, 10) NOT NULL,
+    amount            NUMERIC(24, 10) NOT NULL,
+    commission        NUMERIC(24,10) NOT NULL,
+    commission_asset  VARCHAR(20) NOT NULL,
+
+    CONSTRAINT "order_fk1" FOREIGN KEY ("execution_id") REFERENCES "execution" ("id"),
+    CONSTRAINT unique_execution_id UNIQUE(execution_id)
 );
 
 

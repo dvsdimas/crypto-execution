@@ -55,6 +55,15 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 		return fmt.Sprintf("%+v %s", order, fill)
 	}
 
+	errorResponse := func(response *proto.ExecResponse, err error) *proto.ExecResponse {
+
+		response.Status = proto.StatusError
+
+		response.Description = response.Description + " Parse error [" + err.Error() + "]"
+
+		return response
+	}
+
 	trade := func(request *proto.ExecRequest) *proto.ExecResponse {
 
 		if request == nil {
@@ -136,22 +145,36 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 			// TODO
 		}
 
-		rawOrder := cmd.RawOrder{}
+		response.Order = &cmd.Order{}
 
-		rawOrder.Symbol = order.Symbol
-		rawOrder.OrderID = strconv.FormatInt(order.OrderID, 10)
-		rawOrder.ClientOrderID = order.ClientOrderID
-		rawOrder.TransactTime = strconv.FormatInt(order.TransactTime, 10)
-		rawOrder.Price = order.Price
-		rawOrder.ExecutedQuantity = order.ExecutedQuantity
-		rawOrder.Status = order.Status
-		rawOrder.TimeInForce = order.TimeInForce
-		rawOrder.Type = order.Type
-		rawOrder.Side = order.Side
-		rawOrder.Commission = order.Fills[0].Commission
-		rawOrder.CommissionAsset = order.Fills[0].CommissionAsset
+		response.Order.ExternalOrderId = order.OrderID
 
-		response.Order = &rawOrder
+		response.Order.ExecutionId, err = strconv.ParseInt(order.ClientOrderID, 10, 64)
+
+		if err != nil {
+			return errorResponse(&response, err)
+		}
+
+		response.Order.Amount, err = strconv.ParseFloat(order.ExecutedQuantity, 64)
+
+		if err != nil {
+			return errorResponse(&response, err)
+		}
+
+		response.Order.Price, err = strconv.ParseFloat(order.Fills[0].Price, 64)
+
+		if err != nil {
+			return errorResponse(&response, err)
+		}
+
+		response.Order.Commission, err = strconv.ParseFloat(order.Fills[0].Commission, 64)
+
+		if err != nil {
+			return errorResponse(&response, err)
+		}
+
+		response.Order.CommissionAsset = order.Fills[0].CommissionAsset
+
 		response.Status = proto.StatusOk
 
 		return &response

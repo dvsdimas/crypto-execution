@@ -40,7 +40,9 @@ const tryGetCommandForExecutionSql = selectCommandSql + " WHERE exchange_id = $1
 
 const updateCommandStatusByIdSql = "UPDATE execution SET status_id = $1, connector_id = $2, update_timestamp = $3 WHERE id = $4"
 
-func FinishExecution(db *sql.DB, executionId int64, connectorId int16, currentStatusId int16, newStatusId int16, description string) error {
+const insertNewOrderSql = "INSERT INTO orders (external_order_id, execution_id, price, amount, commission, commission_asset) VALUES ($1, $2, $3, $4, $5, $6)"
+
+func FinishExecution(db *sql.DB, executionId int64, connectorId int16, currentStatusId int16, newStatusId int16, description string, order *cmd.Order) error {
 
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
 
@@ -94,7 +96,30 @@ func FinishExecution(db *sql.DB, executionId int64, connectorId int16, currentSt
 		return errors.New(err)
 	}
 
-	// TODO insert order
+	if order != nil {
+
+		stmt, err = tx.Prepare(insertNewOrderSql)
+
+		if err != nil {
+			_ = tx.Rollback()
+			return errors.New(err)
+		}
+
+		_, err = stmt.Exec(order.ExternalOrderId, order.ExecutionId, order.Price, order.Amount, order.Commission, order.CommissionAsset)
+
+		if err != nil {
+			_ = stmt.Close()
+			_ = tx.Rollback()
+			return errors.New(err)
+		}
+
+		err = stmt.Close()
+
+		if err != nil {
+			_ = tx.Rollback()
+			return errors.New(err)
+		}
+	}
 
 	err = tx.Commit()
 

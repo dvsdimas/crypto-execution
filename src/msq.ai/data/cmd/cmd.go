@@ -75,18 +75,12 @@ func ToRaw(cmd *Command, dictionaries *dic.Dictionaries) *RawCommand {
 	return &raw
 }
 
-type RawOrder struct {
-	ID               string // ""		 				TODO DB int64
-	Symbol           string // "BTTBTC" 				TODO DB string
-	OrderID          string // 7693572 					TODO DB int64
-	ClientOrderID    string // "F35WUSPdFNQGSB9tGx1g8w" TODO DB int64
-	TransactTime     string // 1564228612661 			TODO DB int64
-	Price            string // "0.00000009"				TODO DB float64
-	ExecutedQuantity string // "10000.00000000"			TODO DB float64
-	Status           string // "FILLED"					TODO DB string
-	TimeInForce      string // "GTC"					TODO DB int16
-	Type             string // "MARKET"					TODO DB int16
-	Side             string // "BUY"					TODO DB int16
-	Commission       string // "10.00000000"			TODO DB	float64
-	CommissionAsset  string // "BTT"					TODO DB string
+type Order struct {
+	Id              int64
+	ExternalOrderId int64
+	ExecutionId     int64
+	Price           float64
+	Amount          float64
+	Commission      float64
+	CommissionAsset string
 }

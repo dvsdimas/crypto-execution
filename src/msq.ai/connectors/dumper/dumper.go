@@ -77,13 +77,15 @@ func RunDumper(dburl string, dictionaries *dic.Dictionaries, in <-chan *proto.Ex
 
 				ctxLog.Trace("Dumping order", response.Order)
 
+				// TODO limit
+
 				return dao.FinishExecution(db, response.Request.Cmd.Id, int16(response.Request.Cmd.ConnectorId),
-					statusExecutingId, statusCompletedId, response.Description) // TODO add order
+					statusExecutingId, statusCompletedId, response.Description, response.Order)
 
 			} else if response.Status == proto.StatusError {
 
 				return dao.FinishExecution(db, response.Request.Cmd.Id, int16(response.Request.Cmd.ConnectorId),
-					statusExecutingId, statusErrorId, response.Description)
+					statusExecutingId, statusErrorId, response.Description, nil)
 
 			} else {
 				ctxLog.Fatal("Protocol violation! Illegal response status", response)
