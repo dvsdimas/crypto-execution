@@ -80,7 +80,6 @@ type Order struct {
 	ExternalOrderId int64
 	ExecutionId     int64
 	Price           float64
-	Amount          float64
 	Commission      float64
 	CommissionAsset string
 }

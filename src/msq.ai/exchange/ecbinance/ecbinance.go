@@ -155,12 +155,6 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 			return errorResponse(&response, err)
 		}
 
-		response.Order.Amount, err = strconv.ParseFloat(order.ExecutedQuantity, 64)
-
-		if err != nil {
-			return errorResponse(&response, err)
-		}
-
 		response.Order.Price, err = strconv.ParseFloat(order.Fills[0].Price, 64)
 
 		if err != nil {

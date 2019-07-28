@@ -121,7 +121,6 @@ CREATE TABLE "orders" (
     external_order_id BIGINT NOT NULL,
     execution_id      BIGINT NOT NULL,
     price             NUMERIC(24, 10) NOT NULL,
-    amount            NUMERIC(24, 10) NOT NULL,
     commission        NUMERIC(24,10) NOT NULL,
     commission_asset  VARCHAR(20) NOT NULL,
 
