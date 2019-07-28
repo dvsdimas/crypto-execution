@@ -1,6 +1,9 @@
 package proto
 
-import "msq.ai/data/cmd"
+import (
+	"msq.ai/data/cmd"
+	"time"
+)
 
 type ExecType uint32
 
@@ -23,8 +26,9 @@ type ExecRequest struct {
 }
 
 type ExecResponse struct {
-	Request     *ExecRequest
-	Status      Status
-	Description string
-	Order       *cmd.RawOrder
+	Request          *ExecRequest
+	Status           Status
+	Description      string
+	Order            *cmd.RawOrder
+	OutsideExecution time.Duration
 }

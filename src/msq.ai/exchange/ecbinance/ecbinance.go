@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 const filledValue = "FILLED"
@@ -106,7 +107,11 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 
 		orderService = orderService.Quantity(c.Amount)
 
+		start := time.Now()
+
 		order, err := orderService.Do(context.Background())
+
+		response.OutsideExecution = time.Now().Sub(start)
 
 		if err != nil {
 			ctxLog.Error("Trade error ", err)
