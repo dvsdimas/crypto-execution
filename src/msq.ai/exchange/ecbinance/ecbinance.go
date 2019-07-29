@@ -229,13 +229,23 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 		return c
 	}
 
+	sendToExec := func(request *proto.ExecRequest) {
+		for {
+			sc := getNextChannel()
+
+			select {
+			case sc <- request:
+				return
+			default:
+				continue
+			}
+		}
+	}
+
 	go func() {
-
-		var request *proto.ExecRequest
-
 		for {
 
-			request = <-in
+			request := <-in
 
 			if request == nil {
 				ctxLog.Fatal("Protocol violation! ExecRequest is nil")
@@ -243,7 +253,7 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 
 			ctxLog.Trace("Request for sending to Binance", request)
 
-			getNextChannel() <- request
+			sendToExec(request)
 		}
 	}()
 

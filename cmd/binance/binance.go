@@ -100,7 +100,7 @@ func main() {
 		ctxLog.Fatal("Illegal connectorId ! ", connectorId)
 	}
 
-	cord.RunCoordinator(url, dictionaries, requests, dump, exchangeId, connectorId)
+	cord.RunCoordinator(url, dictionaries, requests, dump, exchangeId, connectorId, connectorsExecPoolSize)
 
 	//------------------------------------------------------------------------------------------------------------------
 

@@ -16,7 +16,8 @@ import (
 
 const limit = 1
 
-func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *proto.ExecRequest, in <-chan *proto.ExecResponse, exchangeId int16, connectorId int16) {
+func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *proto.ExecRequest, in <-chan *proto.ExecResponse,
+	exchangeId int16, connectorId int16, connectorExecPoolSize uint32) {
 
 	ctxLog := log.WithFields(log.Fields{"id": "Coordinator"})
 
@@ -100,7 +101,7 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 			s := atomic.LoadUint32(&sending)
 
-			if s == 0 {
+			if s <= connectorExecPoolSize {
 
 				command = dbTryGetCommandForExecution()
 
@@ -118,7 +119,7 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 				}
 			}
 
-			time.Sleep(250 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 		}
 
 	}()
