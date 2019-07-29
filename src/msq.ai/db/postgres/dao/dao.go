@@ -38,9 +38,87 @@ const loadCommandByIdSql = selectCommandSql + " WHERE id = $1"
 const tryGetCommandForExecutionSql = selectCommandSql + " WHERE exchange_id = $1 AND status_id = $2 AND connector_id ISNULL " +
 	"AND execute_till_time > $3 FOR UPDATE LIMIT $4"
 
+const tryGetCommandForRecoverySql = selectCommandSql + " WHERE exchange_id = $1 AND status_id = $2 AND connector_id = $3 LIMIT 1"
+
 const updateCommandStatusByIdSql = "UPDATE execution SET status_id = $1, connector_id = $2, update_timestamp = $3 WHERE id = $4"
 
 const insertNewOrderSql = "INSERT INTO orders (external_order_id, execution_id, price, commission, commission_asset) VALUES ($1, $2, $3, $4, $5)"
+
+func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusExecutingId int16) (*cmd.Command, error) {
+
+	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: true})
+
+	if err != nil {
+		return nil, errors.New(err)
+	}
+
+	stmt, err := tx.Prepare(tryGetCommandForRecoverySql)
+
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, errors.New(err)
+	}
+
+	row := stmt.QueryRow(exchangeId, statusExecutingId, conId)
+
+	var (
+		limitPrice    sql.NullFloat64
+		connectorId   sql.NullInt64
+		refPositionId sql.NullString
+
+		command cmd.Command
+	)
+
+	err = row.Scan(&command.Id, &command.ExchangeId, &command.InstrumentName, &command.DirectionId, &command.OrderTypeId,
+		&limitPrice, &command.Amount, &command.StatusId, &connectorId, &command.ExecutionTypeId, &command.ExecuteTillTime,
+		&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &command.ApiKey, &command.SecretKey,
+		&command.FingerPrint)
+
+	if err != nil {
+
+		_ = stmt.Close()
+		_ = tx.Rollback()
+
+		if err == sql.ErrNoRows {
+			return nil, nil
+		} else {
+			return nil, errors.New(err)
+		}
+	}
+
+	if limitPrice.Valid {
+		command.LimitPrice = limitPrice.Float64
+	} else {
+		command.LimitPrice = -1
+	}
+
+	if connectorId.Valid {
+		command.ConnectorId = connectorId.Int64
+	} else {
+		command.ConnectorId = -1
+	}
+
+	if refPositionId.Valid {
+		command.RefPositionId = refPositionId.String
+	} else {
+		command.RefPositionId = ""
+	}
+
+	err = stmt.Close()
+
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, errors.New(err)
+	}
+
+	err = tx.Commit()
+
+	if err != nil {
+		return nil, errors.New(err)
+	}
+
+	return &command, nil
+}
 
 func FinishExecution(db *sql.DB, executionId int64, connectorId int16, currentStatusId int16, newStatusId int16, description string, order *cmd.Order) error {
 

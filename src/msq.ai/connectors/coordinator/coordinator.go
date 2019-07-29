@@ -14,8 +14,6 @@ import (
 	"time"
 )
 
-const limit = 1
-
 func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *proto.ExecRequest, in <-chan *proto.ExecResponse,
 	exchangeId int16, connectorId int16, connectorExecPoolSize uint32) {
 
@@ -76,12 +74,27 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 		db.SetMaxOpenConns(3)
 		db.SetConnMaxLifetime(time.Hour)
 
+		dbTryGetCommandForRecovery := func() *cmd.Command {
+
+			statusExecutingId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusExecutingName)
+
+			result, err := dao.TryGetCommandForRecovery(db, exchangeId, connectorId, statusExecutingId)
+
+			if err != nil {
+				logErrWithST("TryGetCommandForRecovery error ! ", err)
+				time.Sleep(5 * time.Second)
+				return nil
+			}
+
+			return result
+		}
+
 		dbTryGetCommandForExecution := func() *cmd.Command {
 
 			statusCreatedId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusCreatedName)
 			statusExecutingId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusExecutingName)
 
-			result, err := dao.TryGetCommandForExecution(db, exchangeId, connectorId, time.Now().Add(future), statusCreatedId, statusExecutingId, limit)
+			result, err := dao.TryGetCommandForExecution(db, exchangeId, connectorId, time.Now().Add(future), statusCreatedId, statusExecutingId, 1)
 
 			if err != nil {
 				logErrWithST("dbTryGetCommandForExecution error ! ", err)
@@ -95,7 +108,22 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 		var command *cmd.Command
 		var raw *cmd.RawCommand
 
-		// TODO restore state lost operations
+		ctxLog.Info("Start recovery procedure")
+
+		for {
+
+			forRecovery := dbTryGetCommandForRecovery()
+
+			if forRecovery == nil {
+				break
+			}
+
+			ctxLog.Trace("Has command for recovery ", forRecovery)
+
+			// TODO
+		}
+
+		ctxLog.Info("Recovery procedure finished")
 
 		for {
 
