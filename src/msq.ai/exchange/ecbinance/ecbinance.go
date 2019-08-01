@@ -14,6 +14,7 @@ import (
 )
 
 const filledValue = "FILLED"
+const orderNotExistError = -2013
 
 func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse, execPoolSize int) {
 
@@ -153,5 +154,55 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 		return &response
 	}
 
-	connector.RunConnector(ctxLog, in, out, execPoolSize, trade)
+	check := func(request *proto.ExecRequest) *proto.ExecResponse {
+
+		if request == nil {
+			ctxLog.Fatal("Protocol violation! nil ExecRequest")
+			return nil
+		}
+
+		c := request.RawCmd
+
+		if c == nil {
+			ctxLog.Fatal("Protocol violation! ExecRequest Trade with empty cmd ! ", request)
+			return nil
+		}
+
+		var response = proto.ExecResponse{Request: request}
+
+		client := binance.NewClient(c.ApiKey, c.SecretKey)
+
+		order, err := client.NewGetOrderService().Symbol(c.Instrument).OrderID(request.Cmd.Id).Do(context.Background())
+
+		if err != nil {
+
+			if binance.IsAPIError(err) && err.(*binance.APIError).Code == orderNotExistError {
+
+				if request.Cmd.ExecuteTillTime.After(time.Now()) {
+
+					return trade(request)
+
+				} else {
+
+					ctxLog.Error("Check error ", err)
+
+					// TODO time out !!!
+				}
+
+			} else {
+				ctxLog.Error("Check error ", err)
+				response.Description = err.Error()
+				response.Status = proto.StatusError
+				return &response
+			}
+		}
+
+		ctxLog.Trace("Order from Binance ", order)
+
+		// TODO !!!!
+
+		return &response
+	}
+
+	connector.RunConnector(ctxLog, in, out, execPoolSize, trade, check)
 }

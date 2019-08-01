@@ -105,9 +105,6 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 			return result
 		}
 
-		var command *cmd.Command
-		var raw *cmd.RawCommand
-
 		ctxLog.Info("Start recovery procedure")
 
 		for {
@@ -120,10 +117,27 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 			ctxLog.Trace("Has command for recovery ", forRecovery)
 
-			// TODO
+			for {
+
+				s := atomic.LoadUint32(&sending)
+
+				if s <= connectorExecPoolSize {
+
+					atomic.AddUint32(&sending, 1)
+
+					out <- &proto.ExecRequest{What: proto.CheckCmd, RawCmd: cmd.ToRaw(forRecovery, dictionaries), Cmd: forRecovery}
+
+					break
+				}
+
+				time.Sleep(100 * time.Millisecond)
+			}
 		}
 
 		ctxLog.Info("Recovery procedure finished")
+
+		var command *cmd.Command
+		var raw *cmd.RawCommand
 
 		for {
 

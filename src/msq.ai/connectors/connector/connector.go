@@ -8,12 +8,20 @@ import (
 )
 
 func RunConnector(ctxLog *log.Entry, in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse, execPoolSize int,
-	trade func(request *proto.ExecRequest) *proto.ExecResponse) {
+	trade func(request *proto.ExecRequest) *proto.ExecResponse, check func(request *proto.ExecRequest) *proto.ExecResponse) {
 
 	ctxLog.Info(" going to start")
 
 	if in == nil {
 		ctxLog.Fatal("ExecRequest channel is nil !")
+	}
+
+	if trade == nil {
+		ctxLog.Fatal("trade function is nil !")
+	}
+
+	if check == nil {
+		ctxLog.Fatal("check function is nil !")
 	}
 
 	if out == nil {
@@ -50,6 +58,8 @@ func RunConnector(ctxLog *log.Entry, in <-chan *proto.ExecRequest, out chan<- *p
 
 			if request.What == proto.ExecuteCmd {
 				response = tradeInternal(request)
+			} else if request.What == proto.CheckCmd {
+				response = check(request)
 			} else {
 				ctxLog.Fatal("Unexpected ExecType", request)
 			}
