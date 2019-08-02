@@ -5,6 +5,7 @@ import (
 	"msq.ai/connectors/proto"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 func RunConnector(ctxLog *log.Entry, in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse, execPoolSize int,
@@ -38,7 +39,12 @@ func RunConnector(ctxLog *log.Entry, in <-chan *proto.ExecRequest, out chan<- *p
 
 	tradeInternal := func(request *proto.ExecRequest) *proto.ExecResponse {
 
-		// TODO check time !!!!
+		if request.Cmd.ExecuteTillTime.Before(time.Now()) {
+			var response = proto.ExecResponse{Request: request}
+			response.Description = "TimedOut right before actual sending"
+			response.Status = proto.StatusTimedOut
+			return &response
+		}
 
 		return trade(request)
 	}

@@ -16,7 +16,7 @@ import (
 )
 
 const propertiesFileName string = "binance.properties"
-const connectorsExecPoolSize = 1 // TODO 100
+const connectorsExecPoolSize = 200
 const dumperExecPoolSize = 10
 
 func init() {
