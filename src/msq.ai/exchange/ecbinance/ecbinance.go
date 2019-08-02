@@ -172,7 +172,7 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 
 		client := binance.NewClient(c.ApiKey, c.SecretKey)
 
-		order, err := client.NewGetOrderService().Symbol(c.Instrument).OrderID(request.Cmd.Id).Do(context.Background())
+		order, err := client.NewGetOrderService().Symbol(c.Instrument).OrigClientOrderID(request.RawCmd.Id).Do(context.Background())
 
 		if err != nil {
 
@@ -197,7 +197,41 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 
 		ctxLog.Trace("Order from Binance ", order)
 
-		// TODO !!!!
+		response.Description = fmt.Sprintf("%+v", order)
+
+		if c.OrderType == constants.OrderTypeMarketName {
+
+			if order.Status != filledValue {
+
+				response.Status = proto.StatusError
+				return &response
+			}
+
+		} else { // constants.OrderTypeLimitName
+			// TODO
+		}
+
+		response.Order = &cmd.Order{}
+
+		response.Order.ExternalOrderId = order.OrderID
+
+		response.Order.ExecutionId, err = strconv.ParseInt(order.ClientOrderID, 10, 64)
+
+		if err != nil {
+			return errorResponse(&response, err)
+		}
+
+		response.Order.Price, err = strconv.ParseFloat(order.Price, 64)
+
+		if err != nil {
+			return errorResponse(&response, err)
+		}
+
+		response.Order.Commission = 0
+
+		response.Order.CommissionAsset = ""
+
+		response.Status = proto.StatusOk
 
 		return &response
 	}

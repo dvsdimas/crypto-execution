@@ -121,11 +121,15 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 				s := atomic.LoadUint32(&sending)
 
-				if s <= connectorExecPoolSize {
+				if s == 0 {
 
 					atomic.AddUint32(&sending, 1)
 
 					out <- &proto.ExecRequest{What: proto.CheckCmd, RawCmd: cmd.ToRaw(forRecovery, dictionaries), Cmd: forRecovery}
+
+					for atomic.LoadUint32(&sending) != 0 {
+						time.Sleep(100 * time.Millisecond)
+					}
 
 					break
 				}
