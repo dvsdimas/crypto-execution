@@ -17,7 +17,7 @@ type Status uint32
 const (
 	StatusError Status = iota
 	StatusOk
-	// TODO timeout
+	StatusTimedOut
 )
 
 type ExecRequest struct {

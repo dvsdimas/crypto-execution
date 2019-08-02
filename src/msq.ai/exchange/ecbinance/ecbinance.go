@@ -179,14 +179,12 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 			if binance.IsAPIError(err) && err.(*binance.APIError).Code == orderNotExistError {
 
 				if request.Cmd.ExecuteTillTime.After(time.Now()) {
-
 					return trade(request)
-
 				} else {
-
-					ctxLog.Error("Check error ", err)
-
-					// TODO time out !!!
+					ctxLog.Info("Check error, order not exist and will be marked timed_out ", err)
+					response.Description = err.Error()
+					response.Status = proto.StatusTimedOut
+					return &response
 				}
 
 			} else {
