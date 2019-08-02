@@ -229,7 +229,7 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 
 		response.Order.Commission = 0
 
-		response.Order.CommissionAsset = ""
+		response.Order.CommissionAsset = "UNKNOWN"
 
 		response.Status = proto.StatusOk
 
