@@ -210,9 +210,38 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 
 	info := func(request *proto.ExecRequest, response *proto.ExecResponse) *proto.ExecResponse {
 
-		//client := binance.NewClient(request.RawCmd.ApiKey, request.RawCmd.SecretKey)
+		client := binance.NewClient(request.RawCmd.ApiKey, request.RawCmd.SecretKey)
+
+		account, err := client.NewGetAccountService().Do(context.Background())
+
+		if err != nil {
+			ctxLog.Error("Info error ", err)
+			response.Description = err.Error()
+			response.Status = proto.StatusError
+			return response
+		}
+
+		ctxLog.Trace(account)
 
 		// TODO
+
+		//type Account struct {
+		//	MakerCommission  int64     `json:"makerCommission"`
+		//	TakerCommission  int64     `json:"takerCommission"`
+		//	BuyerCommission  int64     `json:"buyerCommission"`
+		//	SellerCommission int64     `json:"sellerCommission"`
+		//	CanTrade         bool      `json:"canTrade"`
+		//	CanWithdraw      bool      `json:"canWithdraw"`
+		//	CanDeposit       bool      `json:"canDeposit"`
+		//	Balances         []Balance `json:"balances"`
+		//}
+		//
+		//// Balance define user balance of your account
+		//type Balance struct {
+		//	Asset  string `json:"asset"`
+		//	Free   string `json:"free"`
+		//	Locked string `json:"locked"`
+		//}
 
 		return response
 	}
