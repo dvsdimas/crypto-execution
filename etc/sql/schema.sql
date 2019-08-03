@@ -14,13 +14,14 @@ INSERT INTO "exchange" ("id", "name") VALUES (2, 'KRAKEN');
 
 CREATE TABLE "direction" (
     id    SMALLINT PRIMARY KEY,
-    value VARCHAR(5) NOT NULL,
+    value VARCHAR(10) NOT NULL,
 
     CONSTRAINT "direction_to_value_unique" UNIQUE (value)
 );
 
 INSERT INTO "direction" ("id", "value") VALUES (1, 'BUY');
 INSERT INTO "direction" ("id", "value") VALUES (2, 'SELL');
+INSERT INTO "direction" ("id", "value") VALUES (3, 'ACCOUNT');
 
 
 CREATE TABLE "order_type" (
@@ -32,6 +33,7 @@ CREATE TABLE "order_type" (
 
 INSERT INTO "order_type" ("id", "type") VALUES (1, 'MARKET');
 INSERT INTO "order_type" ("id", "type") VALUES (2, 'LIMIT');
+INSERT INTO "order_type" ("id", "type") VALUES (3, 'INFO');
 
 
 CREATE TABLE "time_in_force" (
@@ -54,6 +56,7 @@ CREATE TABLE "execution_type" (
 
 INSERT INTO "execution_type" ("id", "type") VALUES (1, 'OPEN');
 INSERT INTO "execution_type" ("id", "type") VALUES (2, 'CLOSE');
+INSERT INTO "execution_type" ("id", "type") VALUES (3, 'REQUEST');
 
 
 CREATE TABLE "execution_status" (

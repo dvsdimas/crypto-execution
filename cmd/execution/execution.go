@@ -73,13 +73,13 @@ func main() {
 
 	//------------------------------------------------------------------------------------------------------------------
 
-	// TODO start execution execution history notifier
+	// TODO start execution history notifier
 
 	//----------------------------------------- start REST provider ----------------------------------------------------
 
 	timeForExecution := properties.GetInt(constants.CommandTimeForExecutionSecondsPropertyName, 60)
 
-	//[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+	// TODO [GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
 	//- using env:	export GIN_MODE=release
 	//- using code:	gin.SetMode(gin.ReleaseMode)
 

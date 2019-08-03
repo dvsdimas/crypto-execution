@@ -109,7 +109,14 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 	router := gin.Default()
 
-	// curl -X PUT -d "cmd[exchange]=BINANCE&cmd[instrument]=BTTBTC&cmd[direction]=SELL&cmd[order_type]=MARKET&cmd[time_in_force]=GTC&cmd[amount]=10000&cmd[execution_type]=OPEN&cmd[account_id]=1&cmd[api_key]=B8U0U&cmd[secret_key]=0abqCy&cmd[finger_print]=1234" localhost:8080/execution/v1/command/
+	// BUY
+	// curl -X PUT -d "cmd[exchange]=BINANCE&cmd[instrument]=BTTBTC&cmd[direction]=BUY&cmd[order_type]=MARKET&cmd[time_in_force]=GTC&cmd[amount]=10000&cmd[execution_type]=OPEN&cmd[account_id]=1&cmd[api_key]=JbOlqQXl&cmd[secret_key]=xfPip87D&cmd[finger_print]=asdas" localhost:8080/execution/v1/command/
+
+	// SELL
+	// curl -X PUT -d "cmd[exchange]=BINANCE&cmd[instrument]=BTTBTC&cmd[direction]=SELL&cmd[order_type]=MARKET&cmd[time_in_force]=GTC&cmd[amount]=10000&cmd[execution_type]=OPEN&cmd[account_id]=1&cmd[api_key]=B8U0U&cmd[secret_key]=0abqCy&cmd[finger_print]=qwe" localhost:8080/execution/v1/command/
+
+	// INFO
+	// curl -X PUT -d "cmd[exchange]=BINANCE&cmd[instrument]= &cmd[direction]=ACCOUNT&cmd[order_type]=INFO&cmd[time_in_force]=FOK&cmd[amount]=0&cmd[execution_type]=REQUEST&cmd[account_id]=1&cmd[api_key]=JbOlqQ&cmd[secret_key]=xfPip87&cmd[finger_print]=asdfda" localhost:8080/execution/v1/command/
 
 	var handlerPUT = func(c *gin.Context) {
 
@@ -155,7 +162,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 		ctxLog.Trace("instrument [", instrumentVal, "]")
 
-		if len(instrumentVal) <= 1 {
+		if len(instrumentVal) < 1 || len(instrumentVal) > 20 {
 
 			logErr("Wrong 'instrument' parameter [" + instrumentVal + "]")
 
@@ -287,7 +294,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 		ctxLog.Trace("amount [", amount, "]")
 
-		if math.IsZero(amount) || amount < 0 {
+		if amount < 0 {
 
 			logErr("Wrong 'amount' parameter [" + amountVal + "]")
 
