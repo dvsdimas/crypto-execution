@@ -70,35 +70,40 @@ func RunDumper(dburl string, dictionaries *dic.Dictionaries, in <-chan *proto.Ex
 
 		ctxLog.Trace("Dumping response", response)
 
-		if response.Request.What == proto.ExecuteCmd || response.Request.What == proto.CheckCmd {
+		if response.Status == proto.StatusError {
 
-			ctxLog.Trace("Dumping response", response)
+			return dao.FinishExecution(db, response.Request.Cmd.Id, int16(response.Request.Cmd.ConnectorId), statusExecutingId,
+				statusErrorId, response.Description, nil, response.Balances)
+		}
 
-			if response.Status == proto.StatusOk {
+		if response.Status == proto.StatusTimedOut {
 
-				ctxLog.Trace("Dumping order", response.Order) // TODO limit
+			return dao.FinishExecution(db, response.Request.Cmd.Id, int16(response.Request.Cmd.ConnectorId), statusExecutingId,
+				statusTimedOutId, response.Description, nil, response.Balances)
+		}
 
-				return dao.FinishExecution(db, response.Request.Cmd.Id, int16(response.Request.Cmd.ConnectorId),
-					statusExecutingId, statusCompletedId, response.Description, response.Order)
+		if response.Status == proto.StatusOk {
 
-			} else if response.Status == proto.StatusError {
+			if response.Request.What == proto.ExecuteCmd || response.Request.What == proto.CheckCmd {
 
-				return dao.FinishExecution(db, response.Request.Cmd.Id, int16(response.Request.Cmd.ConnectorId),
-					statusExecutingId, statusErrorId, response.Description, nil)
+				ctxLog.Trace("Dumping response", response)
+				ctxLog.Trace("Dumping order", response.Order)
 
-			} else if response.Status == proto.StatusTimedOut {
+				return dao.FinishExecution(db, response.Request.Cmd.Id, int16(response.Request.Cmd.ConnectorId), statusExecutingId,
+					statusCompletedId, response.Description, response.Order, response.Balances)
 
-				return dao.FinishExecution(db, response.Request.Cmd.Id, int16(response.Request.Cmd.ConnectorId),
-					statusExecutingId, statusTimedOutId, response.Description, nil)
+			} else if response.Request.What == proto.InfoCmd {
 
-			} else {
-				ctxLog.Fatal("Protocol violation! Illegal response status", response)
+				ctxLog.Trace("Dumping Info response", response)
+
+				return dao.FinishExecution(db, response.Request.Cmd.Id, int16(response.Request.Cmd.ConnectorId), statusExecutingId,
+					statusCompletedId, response.Description, nil, response.Balances)
 			}
 
-		} else {
 			ctxLog.Fatal("Protocol violation! Illegal request What !!!!", response, response.Request)
 		}
 
+		ctxLog.Fatal("Protocol violation! Illegal response status", response)
 		return nil
 	}
 

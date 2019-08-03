@@ -120,7 +120,8 @@ func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusE
 	return &command, nil
 }
 
-func FinishExecution(db *sql.DB, executionId int64, connectorId int16, currentStatusId int16, newStatusId int16, description string, order *cmd.Order) error {
+func FinishExecution(db *sql.DB, executionId int64, connectorId int16, currentStatusId int16, newStatusId int16,
+	description string, order *cmd.Order, balances []cmd.Balance) error {
 
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
 
@@ -197,6 +198,12 @@ func FinishExecution(db *sql.DB, executionId int64, connectorId int16, currentSt
 			_ = tx.Rollback()
 			return errors.New(err)
 		}
+	}
+
+	if len(balances) > 0 {
+
+		// TODO
+
 	}
 
 	err = tx.Commit()
