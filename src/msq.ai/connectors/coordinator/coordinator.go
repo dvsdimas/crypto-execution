@@ -35,6 +35,19 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 	var sending uint32 = 0
 
+	makeExecRequest := func(command *cmd.Command, dic *dic.Dictionaries, eType proto.ExecType) *proto.ExecRequest {
+
+		raw := cmd.ToRaw(command, dictionaries)
+
+		var et = eType
+
+		if raw.OrderType == constants.OrderTypeInfoName {
+			et = proto.InfoCmd
+		}
+
+		return &proto.ExecRequest{What: et, RawCmd: raw, Cmd: command}
+	}
+
 	//------------------------------------------------------------------------------------------------------------------
 
 	go func() {
@@ -109,7 +122,7 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 		for {
 
-			forRecovery := dbTryGetCommandForRecovery()
+			forRecovery := dbTryGetCommandForRecovery() // TODO use start time !!!!!
 
 			if forRecovery == nil {
 				break
@@ -121,11 +134,11 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 				s := atomic.LoadUint32(&sending)
 
-				if s == 0 {
+				if s == 0 { // TODO fix with start time !!!!!
 
 					atomic.AddUint32(&sending, 1)
 
-					out <- &proto.ExecRequest{What: proto.CheckCmd, RawCmd: cmd.ToRaw(forRecovery, dictionaries), Cmd: forRecovery}
+					out <- makeExecRequest(forRecovery, dictionaries, proto.CheckCmd)
 
 					for atomic.LoadUint32(&sending) != 0 {
 						time.Sleep(100 * time.Millisecond)
@@ -159,7 +172,7 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 					atomic.AddUint32(&sending, 1)
 
-					out <- &proto.ExecRequest{What: proto.ExecuteCmd, RawCmd: raw, Cmd: command}
+					out <- makeExecRequest(command, dictionaries, proto.ExecuteCmd)
 
 					continue
 				}

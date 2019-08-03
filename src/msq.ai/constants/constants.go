@@ -9,6 +9,7 @@ const DbName string = "postgres"
 
 const OrderTypeLimitName string = "LIMIT"
 const OrderTypeMarketName string = "MARKET"
+const OrderTypeInfoName string = "INFO"
 
 const OrderDirectionBuyName string = "BUY"
 const OrderDirectionSellName string = "SELL"

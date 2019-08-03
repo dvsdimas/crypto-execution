@@ -44,57 +44,43 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 		return response
 	}
 
-	trade := func(request *proto.ExecRequest) *proto.ExecResponse {
+	trade := func(request *proto.ExecRequest, response *proto.ExecResponse) *proto.ExecResponse {
 
-		if request == nil {
-			ctxLog.Fatal("Protocol violation! nil ExecRequest")
-			return nil
-		}
+		client := binance.NewClient(request.RawCmd.ApiKey, request.RawCmd.SecretKey)
 
-		c := request.RawCmd
+		orderService := client.NewCreateOrderService().Symbol(request.RawCmd.Instrument)
+		orderService = orderService.NewClientOrderID(request.RawCmd.Id)
 
-		if c == nil {
-			ctxLog.Fatal("Protocol violation! ExecRequest Trade with empty cmd ! ", request)
-			return nil
-		}
-
-		var response = proto.ExecResponse{Request: request}
-
-		client := binance.NewClient(c.ApiKey, c.SecretKey)
-
-		orderService := client.NewCreateOrderService().Symbol(c.Instrument)
-		orderService = orderService.NewClientOrderID(c.Id)
-
-		if c.OrderType == constants.OrderTypeMarketName {
+		if request.RawCmd.OrderType == constants.OrderTypeMarketName {
 			orderService = orderService.Type(binance.OrderTypeMarket)
-		} else if c.Direction == constants.OrderTypeLimitName {
+		} else if request.RawCmd.Direction == constants.OrderTypeLimitName {
 			orderService = orderService.Type(binance.OrderTypeLimit)
-			orderService = orderService.Price(c.LimitPrice)
+			orderService = orderService.Price(request.RawCmd.LimitPrice)
 		} else {
 			ctxLog.Fatal("Protocol violation! ExecRequest wrong OrderType with empty cmd ! ", request)
 			return nil
 		}
 
-		if c.Direction == constants.OrderDirectionBuyName {
+		if request.RawCmd.Direction == constants.OrderDirectionBuyName {
 			orderService = orderService.Side(binance.SideTypeBuy)
-		} else if c.Direction == constants.OrderDirectionSellName {
+		} else if request.RawCmd.Direction == constants.OrderDirectionSellName {
 			orderService = orderService.Side(binance.SideTypeSell)
 		} else {
 			ctxLog.Fatal("Protocol violation! ExecRequest wrong Direction with empty cmd ! ", request)
 			return nil
 		}
 
-		if c.TimeInForce == constants.TimeInForceGtcName {
+		if request.RawCmd.TimeInForce == constants.TimeInForceGtcName {
 			// orderService = orderService.TimeInForce(binance.TimeInForceGTC)
 		} else {
 			msg := "Protocol violation! ExecRequest has wrong TimeInForce. Binance supported only GTC !"
 			ctxLog.Error(msg, request)
 			response.Description = msg
 			response.Status = proto.StatusError
-			return &response
+			return response
 		}
 
-		orderService = orderService.Quantity(c.Amount)
+		orderService = orderService.Quantity(request.RawCmd.Amount)
 
 		start := time.Now()
 
@@ -106,19 +92,19 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 			ctxLog.Error("Trade error ", err)
 			response.Description = err.Error()
 			response.Status = proto.StatusError
-			return &response
+			return response
 		}
 
 		response.Description = orderToString(order)
 
 		ctxLog.Trace("Order from Binance ", response.Description)
 
-		if c.OrderType == constants.OrderTypeMarketName {
+		if request.RawCmd.OrderType == constants.OrderTypeMarketName {
 
 			if order.Status != filledValue {
 
 				response.Status = proto.StatusError
-				return &response
+				return response
 			}
 
 		} else { // constants.OrderTypeLimitName
@@ -132,66 +118,52 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 		response.Order.ExecutionId, err = strconv.ParseInt(order.ClientOrderID, 10, 64)
 
 		if err != nil {
-			return errorResponse(&response, err)
+			return errorResponse(response, err)
 		}
 
 		response.Order.Price, err = strconv.ParseFloat(order.Fills[0].Price, 64)
 
 		if err != nil {
-			return errorResponse(&response, err)
+			return errorResponse(response, err)
 		}
 
 		response.Order.Commission, err = strconv.ParseFloat(order.Fills[0].Commission, 64)
 
 		if err != nil {
-			return errorResponse(&response, err)
+			return errorResponse(response, err)
 		}
 
 		response.Order.CommissionAsset = order.Fills[0].CommissionAsset
 
 		response.Status = proto.StatusOk
 
-		return &response
+		return response
 	}
 
-	check := func(request *proto.ExecRequest) *proto.ExecResponse {
+	check := func(request *proto.ExecRequest, response *proto.ExecResponse) *proto.ExecResponse {
 
-		if request == nil {
-			ctxLog.Fatal("Protocol violation! nil ExecRequest")
-			return nil
-		}
+		client := binance.NewClient(request.RawCmd.ApiKey, request.RawCmd.SecretKey)
 
-		c := request.RawCmd
-
-		if c == nil {
-			ctxLog.Fatal("Protocol violation! ExecRequest Trade with empty cmd ! ", request)
-			return nil
-		}
-
-		var response = proto.ExecResponse{Request: request}
-
-		client := binance.NewClient(c.ApiKey, c.SecretKey)
-
-		order, err := client.NewGetOrderService().Symbol(c.Instrument).OrigClientOrderID(request.RawCmd.Id).Do(context.Background())
+		order, err := client.NewGetOrderService().Symbol(request.RawCmd.Instrument).OrigClientOrderID(request.RawCmd.Id).Do(context.Background())
 
 		if err != nil {
 
 			if binance.IsAPIError(err) && err.(*binance.APIError).Code == orderNotExistError {
 
 				if request.Cmd.ExecuteTillTime.After(time.Now()) {
-					return trade(request)
+					return trade(request, response)
 				} else {
 					ctxLog.Info("Check error, order not exist and will be marked timed_out ", err)
 					response.Description = err.Error()
 					response.Status = proto.StatusTimedOut
-					return &response
+					return response
 				}
 
 			} else {
 				ctxLog.Error("Check error ", err)
 				response.Description = err.Error()
 				response.Status = proto.StatusError
-				return &response
+				return response
 			}
 		}
 
@@ -199,12 +171,12 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 
 		response.Description = fmt.Sprintf("%+v", order)
 
-		if c.OrderType == constants.OrderTypeMarketName {
+		if request.RawCmd.OrderType == constants.OrderTypeMarketName {
 
 			if order.Status != filledValue {
 
 				response.Status = proto.StatusError
-				return &response
+				return response
 			}
 
 		} else { // constants.OrderTypeLimitName
@@ -218,13 +190,13 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 		response.Order.ExecutionId, err = strconv.ParseInt(order.ClientOrderID, 10, 64)
 
 		if err != nil {
-			return errorResponse(&response, err)
+			return errorResponse(response, err)
 		}
 
 		response.Order.Price, err = strconv.ParseFloat(order.Price, 64)
 
 		if err != nil {
-			return errorResponse(&response, err)
+			return errorResponse(response, err)
 		}
 
 		response.Order.Commission = 0
@@ -233,8 +205,17 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 
 		response.Status = proto.StatusOk
 
-		return &response
+		return response
 	}
 
-	connector.RunConnector(ctxLog, in, out, execPoolSize, trade, check)
+	info := func(request *proto.ExecRequest, response *proto.ExecResponse) *proto.ExecResponse {
+
+		//client := binance.NewClient(request.RawCmd.ApiKey, request.RawCmd.SecretKey)
+
+		// TODO
+
+		return response
+	}
+
+	connector.RunConnector(ctxLog, in, out, execPoolSize, trade, check, info)
 }

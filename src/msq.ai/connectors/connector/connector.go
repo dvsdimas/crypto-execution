@@ -9,7 +9,9 @@ import (
 )
 
 func RunConnector(ctxLog *log.Entry, in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse, execPoolSize int,
-	trade func(request *proto.ExecRequest) *proto.ExecResponse, check func(request *proto.ExecRequest) *proto.ExecResponse) {
+	trade func(request *proto.ExecRequest, response *proto.ExecResponse) *proto.ExecResponse,
+	check func(request *proto.ExecRequest, response *proto.ExecResponse) *proto.ExecResponse,
+	info func(request *proto.ExecRequest, response *proto.ExecResponse) *proto.ExecResponse) {
 
 	ctxLog.Info(" going to start")
 
@@ -25,6 +27,10 @@ func RunConnector(ctxLog *log.Entry, in <-chan *proto.ExecRequest, out chan<- *p
 		ctxLog.Fatal("check function is nil !")
 	}
 
+	if info == nil {
+		ctxLog.Fatal("info function is nil !")
+	}
+
 	if out == nil {
 		ctxLog.Fatal("ExecResponse channel is nil !")
 	}
@@ -37,7 +43,7 @@ func RunConnector(ctxLog *log.Entry, in <-chan *proto.ExecRequest, out chan<- *p
 		ctxLog.Fatal("execPoolSize more than 10000 !")
 	}
 
-	tradeInternal := func(request *proto.ExecRequest) *proto.ExecResponse {
+	tradeInternal := func(request *proto.ExecRequest, response *proto.ExecResponse) *proto.ExecResponse {
 
 		if request.Cmd.ExecuteTillTime.Before(time.Now()) {
 			var response = proto.ExecResponse{Request: request}
@@ -46,7 +52,7 @@ func RunConnector(ctxLog *log.Entry, in <-chan *proto.ExecRequest, out chan<- *p
 			return &response
 		}
 
-		return trade(request)
+		return trade(request, response)
 	}
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -56,16 +62,31 @@ func RunConnector(ctxLog *log.Entry, in <-chan *proto.ExecRequest, out chan<- *p
 	performFunction := func(in <-chan *proto.ExecRequest) {
 
 		for {
+
 			request := <-in
+
+			if request == nil {
+				ctxLog.Fatal("Protocol violation! nil ExecRequest")
+			}
 
 			ctxLog.Trace("Start sending cmd to Binance .....", request)
 
-			var response *proto.ExecResponse
+			if request.RawCmd == nil {
+				ctxLog.Fatal("Protocol violation! ExecRequest Trade with empty rawCmd ! ", request)
+			}
+
+			if request.Cmd == nil {
+				ctxLog.Fatal("Protocol violation! ExecRequest Trade with empty Cmd ! ", request)
+			}
+
+			var response = &proto.ExecResponse{Request: request}
 
 			if request.What == proto.ExecuteCmd {
-				response = tradeInternal(request)
+				response = tradeInternal(request, response)
 			} else if request.What == proto.CheckCmd {
-				response = check(request)
+				response = check(request, response)
+			} else if request.What == proto.InfoCmd {
+				response = info(request, response)
 			} else {
 				ctxLog.Fatal("Unexpected ExecType", request)
 			}

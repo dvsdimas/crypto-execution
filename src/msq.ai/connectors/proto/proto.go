@@ -10,6 +10,7 @@ type ExecType uint32
 const (
 	ExecuteCmd ExecType = iota
 	CheckCmd
+	InfoCmd
 )
 
 type Status uint32
