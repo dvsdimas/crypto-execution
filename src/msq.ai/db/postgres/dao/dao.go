@@ -47,6 +47,8 @@ const updateCommandTimestampByIdSql = "UPDATE execution SET update_timestamp = $
 
 const insertNewOrderSql = "INSERT INTO orders (external_order_id, execution_id, price, commission, commission_asset) VALUES ($1, $2, $3, $4, $5)"
 
+const insertNewBalanceSql = "INSERT INTO balances(execution_id, asset, free, locked) VALUES ($1, $2, $3, $4)"
+
 func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusExecutingId int16, baseLine time.Time) (*cmd.Command, error) {
 
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
@@ -227,8 +229,30 @@ func FinishExecution(db *sql.DB, executionId int64, connectorId int16, currentSt
 
 	if len(balances) > 0 {
 
-		// TODO
+		stmt, err = tx.Prepare(insertNewBalanceSql)
 
+		if err != nil {
+			_ = tx.Rollback()
+			return errors.New(err)
+		}
+
+		for _, bal := range balances {
+
+			_, err = stmt.Exec(executionId, bal.Asset, bal.Free, bal.Locked)
+
+			if err != nil {
+				_ = stmt.Close()
+				_ = tx.Rollback()
+				return errors.New(err)
+			}
+		}
+
+		err = stmt.Close()
+
+		if err != nil {
+			_ = tx.Rollback()
+			return errors.New(err)
+		}
 	}
 
 	err = tx.Commit()

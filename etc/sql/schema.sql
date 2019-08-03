@@ -132,5 +132,15 @@ CREATE TABLE "orders" (
 );
 
 
+CREATE TABLE "balances" (
+    id           BIGSERIAL PRIMARY KEY,
+    execution_id BIGINT NOT NULL,
+    asset        VARCHAR(20) NOT NULL,
+    free         NUMERIC(24, 10) NOT NULL,
+    locked       NUMERIC(24,10) NOT NULL,
+
+    CONSTRAINT "balances_fk1" FOREIGN KEY ("execution_id") REFERENCES "execution" ("id")
+);
+
 COMMIT;
 

@@ -84,11 +84,11 @@ type Order struct {
 	CommissionAsset string
 }
 
-type RawBalance struct {
-	Asset  string
-	Free   string
-	Locked string
-}
+//type RawBalance struct {
+//	Asset  string
+//	Free   string
+//	Locked string
+//}
 
 type Balance struct {
 	Asset  string

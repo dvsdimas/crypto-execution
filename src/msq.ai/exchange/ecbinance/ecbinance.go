@@ -237,8 +237,6 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 			}
 		}
 
-		response.Description = fmt.Sprintf("%+v", account)
-
 		response.Status = proto.StatusOk
 
 		return response
