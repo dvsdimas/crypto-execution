@@ -9,6 +9,7 @@ import (
 	"msq.ai/connectors/proto"
 	"msq.ai/constants"
 	"msq.ai/data/cmd"
+	"msq.ai/utils/math"
 	"strconv"
 	"time"
 )
@@ -76,7 +77,6 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 			msg := "Protocol violation! ExecRequest has wrong TimeInForce. Binance supported only GTC !"
 			ctxLog.Error(msg, request)
 			response.Description = msg
-			response.Status = proto.StatusError
 			return response
 		}
 
@@ -91,7 +91,6 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 		if err != nil {
 			ctxLog.Error("Trade error ", err)
 			response.Description = err.Error()
-			response.Status = proto.StatusError
 			return response
 		}
 
@@ -102,8 +101,7 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 		if request.RawCmd.OrderType == constants.OrderTypeMarketName {
 
 			if order.Status != filledValue {
-
-				response.Status = proto.StatusError
+				response.Description = "Order wasn't fill"
 				return response
 			}
 
@@ -162,7 +160,6 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 			} else {
 				ctxLog.Error("Check error ", err)
 				response.Description = err.Error()
-				response.Status = proto.StatusError
 				return response
 			}
 		}
@@ -174,8 +171,7 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 		if request.RawCmd.OrderType == constants.OrderTypeMarketName {
 
 			if order.Status != filledValue {
-
-				response.Status = proto.StatusError
+				response.Description = "Order wasn't fill"
 				return response
 			}
 
@@ -217,31 +213,33 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 		if err != nil {
 			ctxLog.Error("Info error ", err)
 			response.Description = err.Error()
-			response.Status = proto.StatusError
 			return response
 		}
 
 		ctxLog.Trace(account)
 
-		// TODO
+		response.Balances = make([]cmd.Balance, 0)
 
-		//type Account struct {
-		//	MakerCommission  int64     `json:"makerCommission"`
-		//	TakerCommission  int64     `json:"takerCommission"`
-		//	BuyerCommission  int64     `json:"buyerCommission"`
-		//	SellerCommission int64     `json:"sellerCommission"`
-		//	CanTrade         bool      `json:"canTrade"`
-		//	CanWithdraw      bool      `json:"canWithdraw"`
-		//	CanDeposit       bool      `json:"canDeposit"`
-		//	Balances         []Balance `json:"balances"`
-		//}
-		//
-		//// Balance define user balance of your account
-		//type Balance struct {
-		//	Asset  string `json:"asset"`
-		//	Free   string `json:"free"`
-		//	Locked string `json:"locked"`
-		//}
+		for _, b := range account.Balances {
+
+			free, err := strconv.ParseFloat(b.Free, 64)
+
+			if err != nil {
+				return errorResponse(response, err)
+			}
+
+			locked, err := strconv.ParseFloat(b.Locked, 64)
+
+			if err != nil {
+				return errorResponse(response, err)
+			}
+
+			if !math.IsZero(free) || !math.IsZero(locked) {
+				response.Balances = append(response.Balances, cmd.Balance{Asset: b.Asset, Free: free, Locked: locked})
+			}
+		}
+
+		response.Status = proto.StatusOk
 
 		return response
 	}

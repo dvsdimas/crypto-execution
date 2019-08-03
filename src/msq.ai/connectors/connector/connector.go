@@ -79,7 +79,7 @@ func RunConnector(ctxLog *log.Entry, in <-chan *proto.ExecRequest, out chan<- *p
 				ctxLog.Fatal("Protocol violation! ExecRequest Trade with empty Cmd ! ", request)
 			}
 
-			var response = &proto.ExecResponse{Request: request}
+			var response = &proto.ExecResponse{Request: request, Status: proto.StatusError}
 
 			if request.What == proto.ExecuteCmd {
 				response = tradeInternal(request, response)

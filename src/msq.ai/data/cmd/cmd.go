@@ -83,3 +83,15 @@ type Order struct {
 	Commission      float64
 	CommissionAsset string
 }
+
+type RawBalance struct {
+	Asset  string
+	Free   string
+	Locked string
+}
+
+type Balance struct {
+	Asset  string
+	Free   float64
+	Locked float64
+}

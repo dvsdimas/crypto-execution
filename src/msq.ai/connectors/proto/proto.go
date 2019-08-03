@@ -33,4 +33,5 @@ type ExecResponse struct {
 	Description      string
 	Order            *cmd.Order
 	OutsideExecution time.Duration
+	Balances         []cmd.Balance
 }

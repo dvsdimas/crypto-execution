@@ -68,6 +68,8 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 			atomic.AddUint32(&sending, ^uint32(0))
 
 			ctxLog.Trace("Finished execution", response)
+
+			// TODO send to notification module
 		}
 	}()
 
