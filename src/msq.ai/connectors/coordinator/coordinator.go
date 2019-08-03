@@ -93,7 +93,7 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 			statusExecutingId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusExecutingName)
 
-			result, err := dao.TryGetCommandForRecovery(db, exchangeId, connectorId, statusExecutingId)
+			result, err := dao.TryGetCommandForRecovery(db, exchangeId, connectorId, statusExecutingId, time.Now())
 
 			if err != nil {
 				logErrWithST("TryGetCommandForRecovery error ! ", err)
@@ -124,7 +124,7 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 		for {
 
-			forRecovery := dbTryGetCommandForRecovery() // TODO use start time !!!!!
+			forRecovery := dbTryGetCommandForRecovery()
 
 			if forRecovery == nil {
 				break
@@ -136,7 +136,7 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 				s := atomic.LoadUint32(&sending)
 
-				if s == 0 { // TODO fix with start time !!!!!
+				if s <= connectorExecPoolSize {
 
 					atomic.AddUint32(&sending, 1)
 

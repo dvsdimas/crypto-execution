@@ -38,15 +38,18 @@ const loadCommandByIdSql = selectCommandSql + " WHERE id = $1"
 const tryGetCommandForExecutionSql = selectCommandSql + " WHERE exchange_id = $1 AND status_id = $2 AND connector_id ISNULL " +
 	"AND execute_till_time > $3 FOR UPDATE LIMIT $4"
 
-const tryGetCommandForRecoverySql = selectCommandSql + " WHERE exchange_id = $1 AND status_id = $2 AND connector_id = $3 LIMIT 1"
+const tryGetCommandForRecoverySql = selectCommandSql + " WHERE exchange_id = $1 AND status_id = $2 AND connector_id = $3 " +
+	"AND update_timestamp < $4 FOR UPDATE LIMIT 1"
 
 const updateCommandStatusByIdSql = "UPDATE execution SET status_id = $1, connector_id = $2, update_timestamp = $3 WHERE id = $4"
 
+const updateCommandTimestampByIdSql = "UPDATE execution SET update_timestamp = $1 WHERE id = $2"
+
 const insertNewOrderSql = "INSERT INTO orders (external_order_id, execution_id, price, commission, commission_asset) VALUES ($1, $2, $3, $4, $5)"
 
-func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusExecutingId int16) (*cmd.Command, error) {
+func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusExecutingId int16, baseLine time.Time) (*cmd.Command, error) {
 
-	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: true})
+	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
 
 	if err != nil {
 		return nil, errors.New(err)
@@ -59,7 +62,7 @@ func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusE
 		return nil, errors.New(err)
 	}
 
-	row := stmt.QueryRow(exchangeId, statusExecutingId, conId)
+	row := stmt.QueryRow(exchangeId, statusExecutingId, conId, baseLine)
 
 	var (
 		limitPrice    sql.NullFloat64
@@ -102,6 +105,28 @@ func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusE
 		command.RefPositionId = refPositionId.String
 	} else {
 		command.RefPositionId = ""
+	}
+
+	err = stmt.Close()
+
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, errors.New(err)
+	}
+
+	stmt, err = tx.Prepare(updateCommandTimestampByIdSql)
+
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, errors.New(err)
+	}
+
+	_, err = stmt.Exec(time.Now(), command.Id)
+
+	if err != nil {
+		_ = stmt.Close()
+		_ = tx.Rollback()
+		return nil, errors.New(err)
 	}
 
 	err = stmt.Close()

@@ -216,8 +216,6 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 			return response
 		}
 
-		ctxLog.Trace(account)
-
 		response.Balances = make([]cmd.Balance, 0)
 
 		for _, b := range account.Balances {
@@ -238,6 +236,8 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 				response.Balances = append(response.Balances, cmd.Balance{Asset: b.Asset, Free: free, Locked: locked})
 			}
 		}
+
+		response.Description = fmt.Sprintf("%+v", account)
 
 		response.Status = proto.StatusOk
 
