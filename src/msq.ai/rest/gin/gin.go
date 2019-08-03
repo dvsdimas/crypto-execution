@@ -39,6 +39,8 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 		ctxLog.Fatal("Cannot connect to DB with URL ["+dburl+"] ", err)
 	}
 
+	executionStatusCompletedId := dictionaries.ExecutionStatuses().GetIdByName(con.ExecutionStatusCompletedName)
+
 	db.SetMaxIdleConns(10)
 	db.SetMaxOpenConns(30)
 	db.SetConnMaxLifetime(time.Hour)
@@ -102,6 +104,13 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 			})
 
 			return
+		}
+
+		if command.StatusId == executionStatusCompletedId {
+
+			// TODO add balances to INFO command
+
+			// TODO add order to BUY/SELL command
 		}
 
 		c.JSON(http.StatusOK, comd.ToRaw(command, dictionaries))

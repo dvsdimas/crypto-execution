@@ -366,7 +366,7 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 	return &command, nil
 }
 
-func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) {
+func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) { // TODO order and balances
 
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: true})
 
