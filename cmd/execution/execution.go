@@ -4,6 +4,7 @@ import (
 	_ "github.com/lib/pq"
 	prop "github.com/magiconair/properties"
 	log "github.com/sirupsen/logrus"
+	"msq.ai/connectors/timeouter"
 	"msq.ai/constants"
 	"msq.ai/db/postgres/dao"
 	pgh "msq.ai/db/postgres/helper"
@@ -69,11 +70,7 @@ func main() {
 
 	//------------------------------------------------------------------------------------------------------------------
 
-	// TODO start execution timeout validator
-
-	//------------------------------------------------------------------------------------------------------------------
-
-	// TODO start execution history notifier
+	timeouter.RunTimeOuter(url, dictionaries)
 
 	//----------------------------------------- start REST provider ----------------------------------------------------
 
@@ -90,6 +87,6 @@ func main() {
 	// TODO perform some statistic calculation and print, send , something, ..... XZ
 
 	for {
-		time.Sleep(1 * time.Second)
+		time.Sleep(60 * time.Second)
 	}
 }

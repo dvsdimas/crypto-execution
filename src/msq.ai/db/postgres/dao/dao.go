@@ -49,6 +49,31 @@ const insertNewOrderSql = "INSERT INTO orders (external_order_id, execution_id, 
 
 const insertNewBalanceSql = "INSERT INTO balances(execution_id, asset, free, locked) VALUES ($1, $2, $3, $4)"
 
+func FinishStaleCommands(db *sql.DB, statusCreatedId int16, statusTimedOutId int16, baseLine time.Time, limit int) (*[]*cmd.Command, error) {
+
+	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
+
+	if err != nil {
+		return nil, errors.New(err)
+	}
+
+	commands := make([]*cmd.Command, limit)
+
+	// TODO
+
+	err = tx.Commit()
+
+	if err != nil {
+		return nil, errors.New(err)
+	}
+
+	if len(commands) == 0 {
+		return nil, nil
+	}
+
+	return &commands, nil
+}
+
 func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusExecutingId int16, baseLine time.Time) (*cmd.Command, error) {
 
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
@@ -147,14 +172,8 @@ func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusE
 	return &command, nil
 }
 
-func FinishExecution(db *sql.DB, executionId int64, connectorId int16, currentStatusId int16, newStatusId int16,
-	description string, order *cmd.Order, balances []cmd.Balance) error {
-
-	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
-
-	if err != nil {
-		return errors.New(err)
-	}
+func finishExecution(tx *sql.Tx, executionId int64, connectorId int16, currentStatusId int16, newStatusId int16, description string,
+	order *cmd.Order, balances *[]cmd.Balance) error {
 
 	stmt, err := tx.Prepare(updateCommandStatusByIdSql)
 
@@ -165,7 +184,7 @@ func FinishExecution(db *sql.DB, executionId int64, connectorId int16, currentSt
 
 	now := time.Now()
 
-	_, err = stmt.Exec(newStatusId, connectorId, now, executionId)
+	_, err = stmt.Exec(newStatusId, nullInt64(int64(connectorId)), now, executionId)
 
 	if err != nil {
 		_ = stmt.Close()
@@ -227,7 +246,7 @@ func FinishExecution(db *sql.DB, executionId int64, connectorId int16, currentSt
 		}
 	}
 
-	if len(balances) > 0 {
+	if balances != nil && len(*balances) > 0 {
 
 		stmt, err = tx.Prepare(insertNewBalanceSql)
 
@@ -236,7 +255,7 @@ func FinishExecution(db *sql.DB, executionId int64, connectorId int16, currentSt
 			return errors.New(err)
 		}
 
-		for _, bal := range balances {
+		for _, bal := range *balances {
 
 			_, err = stmt.Exec(executionId, bal.Asset, bal.Free, bal.Locked)
 
@@ -253,6 +272,25 @@ func FinishExecution(db *sql.DB, executionId int64, connectorId int16, currentSt
 			_ = tx.Rollback()
 			return errors.New(err)
 		}
+	}
+
+	return nil
+}
+
+func FinishExecution(db *sql.DB, executionId int64, connectorId int16, currentStatusId int16, newStatusId int16,
+	description string, order *cmd.Order, balances *[]cmd.Balance) error {
+
+	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
+
+	if err != nil {
+		return errors.New(err)
+	}
+
+	err = finishExecution(tx, executionId, connectorId, currentStatusId, newStatusId, description, order, balances)
+
+	if err != nil {
+		_ = tx.Rollback()
+		return errors.New(err)
 	}
 
 	err = tx.Commit()
@@ -474,13 +512,22 @@ func nullString(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: true}
 }
 
-func nullLimitPrice(limitPrice float64) sql.NullFloat64 {
+func nullFloat(value float64) sql.NullFloat64 {
 
-	if limitPrice < 0 {
+	if value < 0 {
 		return sql.NullFloat64{Valid: false}
 	}
 
-	return sql.NullFloat64{Float64: limitPrice, Valid: true}
+	return sql.NullFloat64{Float64: value, Valid: true}
+}
+
+func nullInt64(value int64) sql.NullInt64 {
+
+	if value < 0 {
+		return sql.NullInt64{Valid: false}
+	}
+
+	return sql.NullInt64{Int64: value, Valid: true}
 }
 
 func getCommandIdByFingerPrint(db *sql.DB, fingerPrint string) (int64, error) {
@@ -544,7 +591,7 @@ func InsertCommand(db *sql.DB, exchangeId int16, instrument string, directionId 
 		return -1, errors.New(err)
 	}
 
-	row := stmt.QueryRow(exchangeId, instrument, directionId, orderTypeId, nullLimitPrice(limitPrice), timeInForceId, amount, statusId,
+	row := stmt.QueryRow(exchangeId, instrument, directionId, orderTypeId, nullFloat(limitPrice), timeInForceId, amount, statusId,
 		executionTypeId, future, nullString(refPositionIdVal), now, accountId, apiKey, secretKey, fingerPrint)
 
 	var id int64

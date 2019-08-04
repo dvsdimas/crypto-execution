@@ -73,13 +73,13 @@ func RunDumper(dburl string, dictionaries *dic.Dictionaries, in <-chan *proto.Ex
 		if response.Status == proto.StatusError {
 
 			return dao.FinishExecution(db, response.Request.Cmd.Id, int16(response.Request.Cmd.ConnectorId), statusExecutingId,
-				statusErrorId, response.Description, nil, response.Balances)
+				statusErrorId, response.Description, nil, &response.Balances)
 		}
 
 		if response.Status == proto.StatusTimedOut {
 
 			return dao.FinishExecution(db, response.Request.Cmd.Id, int16(response.Request.Cmd.ConnectorId), statusExecutingId,
-				statusTimedOutId, response.Description, nil, response.Balances)
+				statusTimedOutId, response.Description, nil, &response.Balances)
 		}
 
 		if response.Status == proto.StatusOk {
@@ -90,14 +90,14 @@ func RunDumper(dburl string, dictionaries *dic.Dictionaries, in <-chan *proto.Ex
 				ctxLog.Trace("Dumping order", response.Order)
 
 				return dao.FinishExecution(db, response.Request.Cmd.Id, int16(response.Request.Cmd.ConnectorId), statusExecutingId,
-					statusCompletedId, response.Description, response.Order, response.Balances)
+					statusCompletedId, response.Description, response.Order, &response.Balances)
 
 			} else if response.Request.What == proto.InfoCmd {
 
 				ctxLog.Trace("Dumping Info response", response)
 
 				return dao.FinishExecution(db, response.Request.Cmd.Id, int16(response.Request.Cmd.ConnectorId), statusExecutingId,
-					statusCompletedId, response.Description, nil, response.Balances)
+					statusCompletedId, response.Description, nil, &response.Balances)
 			}
 
 			ctxLog.Fatal("Protocol violation! Illegal request What !!!!", response, response.Request)
