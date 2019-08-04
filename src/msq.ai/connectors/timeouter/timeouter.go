@@ -70,6 +70,10 @@ func RunTimeOuter(dburl string, dictionaries *dic.Dictionaries) {
 					break
 				}
 
+				for _, c := range *cmds {
+					ctxLog.Trace("Finished stale command", c)
+				}
+
 				// TODO notify
 			}
 		}

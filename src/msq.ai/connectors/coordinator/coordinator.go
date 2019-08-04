@@ -86,7 +86,7 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 		}
 
 		db.SetMaxIdleConns(1)
-		db.SetMaxOpenConns(3)
+		db.SetMaxOpenConns(1)
 		db.SetConnMaxLifetime(time.Hour)
 
 		dbTryGetCommandForRecovery := func() *cmd.Command {

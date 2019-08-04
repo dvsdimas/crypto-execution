@@ -77,7 +77,11 @@ func scanRowCommand(row *sql.Row, rows *sql.Rows) (*cmd.Command, error) {
 	}
 
 	if err != nil {
-		return nil, errors.New(err)
+		if err == sql.ErrNoRows {
+			return nil, nil
+		} else {
+			return nil, errors.New(err)
+		}
 	}
 
 	if limitPrice.Valid {
@@ -189,15 +193,9 @@ func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusE
 	command, err := scanRowCommand(row, nil)
 
 	if err != nil {
-
 		_ = stmt.Close()
 		_ = tx.Rollback()
-
-		if err == sql.ErrNoRows {
-			return nil, nil
-		} else {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	err = stmt.Close()
@@ -205,6 +203,17 @@ func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusE
 	if err != nil {
 		_ = tx.Rollback()
 		return nil, errors.New(err)
+	}
+
+	if command == nil {
+
+		err = tx.Commit()
+
+		if err != nil {
+			return nil, errors.New(err)
+		}
+
+		return nil, nil
 	}
 
 	stmt, err = tx.Prepare(updateCommandTimestampByIdSql)
@@ -377,15 +386,9 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 	command, err := scanRowCommand(row, nil)
 
 	if err != nil {
-
 		_ = stmt.Close()
 		_ = tx.Rollback()
-
-		if err == sql.ErrNoRows {
-			return nil, nil
-		} else {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	err = stmt.Close()
@@ -393,6 +396,17 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 	if err != nil {
 		_ = tx.Rollback()
 		return nil, errors.New(err)
+	}
+
+	if command == nil {
+
+		err = tx.Commit()
+
+		if err != nil {
+			return nil, errors.New(err)
+		}
+
+		return nil, nil
 	}
 
 	stmt, err = tx.Prepare(updateCommandStatusByIdSql)
@@ -475,12 +489,7 @@ func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) { // TODO order
 	if err != nil {
 		_ = stmt.Close()
 		_ = tx.Rollback()
-
-		if err == sql.ErrNoRows {
-			return nil, nil
-		} else {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	err = stmt.Close()
