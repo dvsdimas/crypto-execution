@@ -13,6 +13,8 @@ import (
 
 const duplicateKeyValueViolates = "23505"
 
+const timedOutWithOutExecutionDescription = "Timed out without trying to execute"
+
 const loadExchangesSql = "SELECT id, name FROM exchange"
 const loadDirectionsSql = "SELECT id, value FROM direction"
 const loadOrderTypesSql = "SELECT id, type FROM order_type"
@@ -38,6 +40,8 @@ const loadCommandByIdSql = selectCommandSql + " WHERE id = $1"
 const tryGetCommandForExecutionSql = selectCommandSql + " WHERE exchange_id = $1 AND status_id = $2 AND connector_id ISNULL " +
 	"AND execute_till_time > $3 FOR UPDATE LIMIT $4"
 
+const finishStaleCommandsSql = selectCommandSql + " WHERE status_id = $1 AND execute_till_time < $2 FOR UPDATE LIMIT $3"
+
 const tryGetCommandForRecoverySql = selectCommandSql + " WHERE exchange_id = $1 AND status_id = $2 AND connector_id = $3 " +
 	"AND update_timestamp < $4 FOR UPDATE LIMIT 1"
 
@@ -49,9 +53,55 @@ const insertNewOrderSql = "INSERT INTO orders (external_order_id, execution_id, 
 
 const insertNewBalanceSql = "INSERT INTO balances(execution_id, asset, free, locked) VALUES ($1, $2, $3, $4)"
 
-func FinishStaleCommands(db *sql.DB, statusCreatedId int16, statusTimedOutId int16, baseLine time.Time, limit int) (*[]*cmd.Command, error) {
+func scanRowCommand(row *sql.Row, rows *sql.Rows) (*cmd.Command, error) {
+	var (
+		limitPrice    sql.NullFloat64
+		connectorId   sql.NullInt64
+		refPositionId sql.NullString
 
-	var commands []*cmd.Command
+		command cmd.Command
+	)
+
+	var err error
+
+	if row != nil {
+		err = row.Scan(&command.Id, &command.ExchangeId, &command.InstrumentName, &command.DirectionId, &command.OrderTypeId,
+			&limitPrice, &command.Amount, &command.StatusId, &connectorId, &command.ExecutionTypeId, &command.ExecuteTillTime,
+			&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &command.ApiKey, &command.SecretKey,
+			&command.FingerPrint)
+	} else {
+		err = rows.Scan(&command.Id, &command.ExchangeId, &command.InstrumentName, &command.DirectionId, &command.OrderTypeId,
+			&limitPrice, &command.Amount, &command.StatusId, &connectorId, &command.ExecutionTypeId, &command.ExecuteTillTime,
+			&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &command.ApiKey, &command.SecretKey,
+			&command.FingerPrint)
+	}
+
+	if err != nil {
+		return nil, errors.New(err)
+	}
+
+	if limitPrice.Valid {
+		command.LimitPrice = limitPrice.Float64
+	} else {
+		command.LimitPrice = -1
+	}
+
+	if connectorId.Valid {
+		command.ConnectorId = connectorId.Int64
+	} else {
+		command.ConnectorId = -1
+	}
+
+	if refPositionId.Valid {
+		command.RefPositionId = refPositionId.String
+	} else {
+		command.RefPositionId = ""
+	}
+
+	return &command, nil
+}
+
+func FinishStaleCommands(db *sql.DB, statusCreatedId int16, statusTimedOutId int16, baseLine time.Time, limit int) (*[]*cmd.Command, error) {
 
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
 
@@ -59,9 +109,52 @@ func FinishStaleCommands(db *sql.DB, statusCreatedId int16, statusTimedOutId int
 		return nil, errors.New(err)
 	}
 
-	//commands := make([]*cmd.Command, 0)
+	rows, err := tx.Query(finishStaleCommandsSql, statusCreatedId, baseLine, limit)
 
-	// TODO
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, errors.New(err)
+	}
+
+	commands := make([]*cmd.Command, 0)
+
+	for rows.Next() {
+
+		command, err := scanRowCommand(nil, rows)
+
+		if err != nil {
+			_ = rows.Close()
+			_ = tx.Rollback()
+			return nil, err
+		}
+
+		commands = append(commands, command)
+	}
+
+	if err = rows.Err(); err != nil {
+		_ = rows.Close()
+		_ = tx.Rollback()
+		return nil, errors.New(err)
+	}
+
+	err = rows.Close()
+
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, errors.New(err)
+	}
+
+	for _, command := range commands {
+
+		err = finishExecution(tx, command.Id, -1, statusCreatedId, statusTimedOutId, timedOutWithOutExecutionDescription, nil, nil)
+
+		if err != nil {
+			return nil, err
+		}
+
+		command.StatusId = statusTimedOutId
+		command.UpdateTimestamp = time.Now()
+	}
 
 	err = tx.Commit()
 
@@ -69,7 +162,7 @@ func FinishStaleCommands(db *sql.DB, statusCreatedId int16, statusTimedOutId int
 		return nil, errors.New(err)
 	}
 
-	if commands == nil || len(commands) == 0 {
+	if len(commands) == 0 {
 		return nil, nil
 	}
 
@@ -93,18 +186,7 @@ func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusE
 
 	row := stmt.QueryRow(exchangeId, statusExecutingId, conId, baseLine)
 
-	var (
-		limitPrice    sql.NullFloat64
-		connectorId   sql.NullInt64
-		refPositionId sql.NullString
-
-		command cmd.Command
-	)
-
-	err = row.Scan(&command.Id, &command.ExchangeId, &command.InstrumentName, &command.DirectionId, &command.OrderTypeId,
-		&limitPrice, &command.Amount, &command.StatusId, &connectorId, &command.ExecutionTypeId, &command.ExecuteTillTime,
-		&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &command.ApiKey, &command.SecretKey,
-		&command.FingerPrint)
+	command, err := scanRowCommand(row, nil)
 
 	if err != nil {
 
@@ -114,26 +196,8 @@ func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusE
 		if err == sql.ErrNoRows {
 			return nil, nil
 		} else {
-			return nil, errors.New(err)
+			return nil, err
 		}
-	}
-
-	if limitPrice.Valid {
-		command.LimitPrice = limitPrice.Float64
-	} else {
-		command.LimitPrice = -1
-	}
-
-	if connectorId.Valid {
-		command.ConnectorId = connectorId.Int64
-	} else {
-		command.ConnectorId = -1
-	}
-
-	if refPositionId.Valid {
-		command.RefPositionId = refPositionId.String
-	} else {
-		command.RefPositionId = ""
 	}
 
 	err = stmt.Close()
@@ -171,7 +235,7 @@ func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusE
 		return nil, errors.New(err)
 	}
 
-	return &command, nil
+	return command, nil
 }
 
 func finishExecution(tx *sql.Tx, executionId int64, connectorId int16, currentStatusId int16, newStatusId int16, description string,
@@ -180,7 +244,6 @@ func finishExecution(tx *sql.Tx, executionId int64, connectorId int16, currentSt
 	stmt, err := tx.Prepare(updateCommandStatusByIdSql)
 
 	if err != nil {
-		_ = tx.Rollback()
 		return errors.New(err)
 	}
 
@@ -190,21 +253,18 @@ func finishExecution(tx *sql.Tx, executionId int64, connectorId int16, currentSt
 
 	if err != nil {
 		_ = stmt.Close()
-		_ = tx.Rollback()
 		return errors.New(err)
 	}
 
 	err = stmt.Close()
 
 	if err != nil {
-		_ = tx.Rollback()
 		return errors.New(err)
 	}
 
 	stmt, err = tx.Prepare(insertCommandHistorySql)
 
 	if err != nil {
-		_ = tx.Rollback()
 		return errors.New(err)
 	}
 
@@ -212,14 +272,12 @@ func finishExecution(tx *sql.Tx, executionId int64, connectorId int16, currentSt
 
 	if err != nil {
 		_ = stmt.Close()
-		_ = tx.Rollback()
 		return errors.New(err)
 	}
 
 	err = stmt.Close()
 
 	if err != nil {
-		_ = tx.Rollback()
 		return errors.New(err)
 	}
 
@@ -228,7 +286,6 @@ func finishExecution(tx *sql.Tx, executionId int64, connectorId int16, currentSt
 		stmt, err = tx.Prepare(insertNewOrderSql)
 
 		if err != nil {
-			_ = tx.Rollback()
 			return errors.New(err)
 		}
 
@@ -236,14 +293,12 @@ func finishExecution(tx *sql.Tx, executionId int64, connectorId int16, currentSt
 
 		if err != nil {
 			_ = stmt.Close()
-			_ = tx.Rollback()
 			return errors.New(err)
 		}
 
 		err = stmt.Close()
 
 		if err != nil {
-			_ = tx.Rollback()
 			return errors.New(err)
 		}
 	}
@@ -253,7 +308,6 @@ func finishExecution(tx *sql.Tx, executionId int64, connectorId int16, currentSt
 		stmt, err = tx.Prepare(insertNewBalanceSql)
 
 		if err != nil {
-			_ = tx.Rollback()
 			return errors.New(err)
 		}
 
@@ -263,7 +317,6 @@ func finishExecution(tx *sql.Tx, executionId int64, connectorId int16, currentSt
 
 			if err != nil {
 				_ = stmt.Close()
-				_ = tx.Rollback()
 				return errors.New(err)
 			}
 		}
@@ -271,7 +324,6 @@ func finishExecution(tx *sql.Tx, executionId int64, connectorId int16, currentSt
 		err = stmt.Close()
 
 		if err != nil {
-			_ = tx.Rollback()
 			return errors.New(err)
 		}
 	}
@@ -292,7 +344,7 @@ func FinishExecution(db *sql.DB, executionId int64, connectorId int16, currentSt
 
 	if err != nil {
 		_ = tx.Rollback()
-		return errors.New(err)
+		return err
 	}
 
 	err = tx.Commit()
@@ -322,18 +374,7 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 
 	row := stmt.QueryRow(exchangeId, statusCreatedId, validTimeTo, limit)
 
-	var (
-		limitPrice    sql.NullFloat64
-		connectorId   sql.NullInt64
-		refPositionId sql.NullString
-
-		command cmd.Command
-	)
-
-	err = row.Scan(&command.Id, &command.ExchangeId, &command.InstrumentName, &command.DirectionId, &command.OrderTypeId,
-		&limitPrice, &command.Amount, &command.StatusId, &connectorId, &command.ExecutionTypeId, &command.ExecuteTillTime,
-		&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &command.ApiKey, &command.SecretKey,
-		&command.FingerPrint)
+	command, err := scanRowCommand(row, nil)
 
 	if err != nil {
 
@@ -343,26 +384,8 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 		if err == sql.ErrNoRows {
 			return nil, nil
 		} else {
-			return nil, errors.New(err)
+			return nil, err
 		}
-	}
-
-	if limitPrice.Valid {
-		command.LimitPrice = limitPrice.Float64
-	} else {
-		command.LimitPrice = -1
-	}
-
-	if connectorId.Valid {
-		command.ConnectorId = connectorId.Int64
-	} else {
-		command.ConnectorId = -1
-	}
-
-	if refPositionId.Valid {
-		command.RefPositionId = refPositionId.String
-	} else {
-		command.RefPositionId = ""
 	}
 
 	err = stmt.Close()
@@ -427,7 +450,7 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 	command.ConnectorId = int64(conId)
 	command.StatusId = statusExecutingId
 
-	return &command, nil
+	return command, nil
 }
 
 func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) { // TODO order and balances
@@ -447,18 +470,7 @@ func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) { // TODO order
 
 	row := stmt.QueryRow(id)
 
-	var (
-		limitPrice    sql.NullFloat64
-		connectorId   sql.NullInt64
-		refPositionId sql.NullString
-
-		command cmd.Command
-	)
-
-	err = row.Scan(&command.Id, &command.ExchangeId, &command.InstrumentName, &command.DirectionId, &command.OrderTypeId,
-		&limitPrice, &command.Amount, &command.StatusId, &connectorId, &command.ExecutionTypeId, &command.ExecuteTillTime,
-		&refPositionId, &command.TimeInForceId, &command.UpdateTimestamp, &command.AccountId, &command.ApiKey, &command.SecretKey,
-		&command.FingerPrint)
+	command, err := scanRowCommand(row, nil)
 
 	if err != nil {
 		_ = stmt.Close()
@@ -467,26 +479,8 @@ func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) { // TODO order
 		if err == sql.ErrNoRows {
 			return nil, nil
 		} else {
-			return nil, errors.New(err)
+			return nil, err
 		}
-	}
-
-	if limitPrice.Valid {
-		command.LimitPrice = limitPrice.Float64
-	} else {
-		command.LimitPrice = -1
-	}
-
-	if connectorId.Valid {
-		command.ConnectorId = connectorId.Int64
-	} else {
-		command.ConnectorId = -1
-	}
-
-	if refPositionId.Valid {
-		command.RefPositionId = refPositionId.String
-	} else {
-		command.RefPositionId = ""
 	}
 
 	err = stmt.Close()
@@ -502,7 +496,7 @@ func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) { // TODO order
 		return nil, errors.New(err)
 	}
 
-	return &command, nil
+	return command, nil
 }
 
 func nullString(s string) sql.NullString {

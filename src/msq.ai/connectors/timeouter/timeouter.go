@@ -71,9 +71,6 @@ func RunTimeOuter(dburl string, dictionaries *dic.Dictionaries) {
 				}
 
 				// TODO notify
-
-				//ctxLog.Trace("Finished execution", )
-
 			}
 		}
 	}()
