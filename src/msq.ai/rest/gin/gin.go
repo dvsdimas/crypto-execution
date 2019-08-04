@@ -41,8 +41,8 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 	executionStatusCompletedId := dictionaries.ExecutionStatuses().GetIdByName(con.ExecutionStatusCompletedName)
 
-	db.SetMaxIdleConns(2)
-	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(10)
+	db.SetMaxOpenConns(30)
 	db.SetConnMaxLifetime(time.Hour)
 
 	dbLoadCommandById := func(id int64) (*comd.Command, error) {

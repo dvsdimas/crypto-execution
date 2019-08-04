@@ -51,13 +51,15 @@ const insertNewBalanceSql = "INSERT INTO balances(execution_id, asset, free, loc
 
 func FinishStaleCommands(db *sql.DB, statusCreatedId int16, statusTimedOutId int16, baseLine time.Time, limit int) (*[]*cmd.Command, error) {
 
+	var commands []*cmd.Command
+
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
 
 	if err != nil {
 		return nil, errors.New(err)
 	}
 
-	commands := make([]*cmd.Command, limit)
+	//commands := make([]*cmd.Command, 0)
 
 	// TODO
 
@@ -67,7 +69,7 @@ func FinishStaleCommands(db *sql.DB, statusCreatedId int16, statusTimedOutId int
 		return nil, errors.New(err)
 	}
 
-	if len(commands) == 0 {
+	if commands == nil || len(commands) == 0 {
 		return nil, nil
 	}
 
