@@ -58,10 +58,27 @@ func ToRaw(cmd *Command, dictionaries *dic.Dictionaries) *RawCommand {
 	raw.Instrument = cmd.InstrumentName
 	raw.Direction = dictionaries.Directions().GetNameById(cmd.DirectionId)
 	raw.OrderType = dictionaries.OrderTypes().GetNameById(cmd.OrderTypeId)
-	raw.LimitPrice = fmt.Sprintf("%f", cmd.LimitPrice)
-	raw.Amount = fmt.Sprintf("%f", cmd.Amount)
+
+	if cmd.LimitPrice < 0 {
+		raw.LimitPrice = ""
+	} else {
+		raw.LimitPrice = fmt.Sprintf("%f", cmd.LimitPrice)
+	}
+
+	if cmd.Amount <= 0 {
+		raw.Amount = ""
+	} else {
+		raw.Amount = fmt.Sprintf("%f", cmd.Amount)
+	}
+
 	raw.Status = dictionaries.ExecutionStatuses().GetNameById(cmd.StatusId)
-	raw.ConnectorId = strconv.FormatInt(cmd.ConnectorId, 10)
+
+	if cmd.ConnectorId < 0 {
+		raw.ConnectorId = ""
+	} else {
+		raw.ConnectorId = strconv.FormatInt(cmd.ConnectorId, 10)
+	}
+
 	raw.ExecutionType = dictionaries.ExecutionTypes().GetNameById(cmd.ExecutionTypeId)
 	raw.ExecuteTillTime = cmd.ExecuteTillTime.Format(time.RFC3339)
 	raw.RefPositionId = cmd.RefPositionId

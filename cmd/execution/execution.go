@@ -84,8 +84,6 @@ func main() {
 
 	//------------------------------------------------------------------------------------------------------------------
 
-	// TODO perform some statistic calculation and print, send , something, ..... XZ
-
 	for {
 		time.Sleep(60 * time.Second)
 	}
