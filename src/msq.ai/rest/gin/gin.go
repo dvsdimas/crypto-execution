@@ -40,13 +40,14 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 	}
 
 	executionStatusCompletedId := dictionaries.ExecutionStatuses().GetIdByName(con.ExecutionStatusCompletedName)
+	orderTypeInfoId := dictionaries.OrderTypes().GetIdByName(con.OrderTypeInfoName)
 
 	db.SetMaxIdleConns(10)
 	db.SetMaxOpenConns(30)
 	db.SetConnMaxLifetime(time.Hour)
 
-	dbLoadCommandById := func(id int64) (*comd.Command, error) {
-		return dao.LoadCommandById(db, id)
+	dbLoadCommandById := func(id int64) (*comd.Command, *comd.Order, *[]*comd.Balance, error) {
+		return dao.LoadCommandById(db, id, executionStatusCompletedId, orderTypeInfoId)
 	}
 
 	dbInsertCommand := func(exchangeId int16, instrumentVal string, directionId int16, orderTypeId int16, limitPrice float64,
@@ -82,7 +83,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 		ctxLog.Trace("id [", id, "]")
 
-		command, err := dbLoadCommandById(id)
+		command, order, balances, err := dbLoadCommandById(id)
 
 		if err != nil {
 
@@ -108,9 +109,15 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 		if command.StatusId == executionStatusCompletedId {
 
-			// TODO add balances to INFO command
-
-			// TODO add order to BUY/SELL command
+			if order != nil {
+				c.JSON(http.StatusOK, comd.ToRawWithOrder(command, dictionaries, order))
+				return
+			} else if balances != nil {
+				c.JSON(http.StatusOK, comd.ToRawWithBalances(command, dictionaries, balances))
+				return
+			} else {
+				ctxLog.Fatal("Illegal state! Execution Status is Completed, but haven't neither order neither balances")
+			}
 		}
 
 		c.JSON(http.StatusOK, comd.ToRaw(command, dictionaries))

@@ -49,6 +49,44 @@ type RawCommand struct {
 	FingerPrint     string
 }
 
+type RawCommandWithOrder struct {
+	Id              string
+	Exchange        string
+	Instrument      string
+	Direction       string
+	OrderType       string
+	LimitPrice      string
+	Amount          string
+	Status          string
+	ConnectorId     string
+	ExecutionType   string
+	ExecuteTillTime string
+	RefPositionId   string
+	TimeInForce     string
+	UpdateTime      string
+	AccountId       string
+	Order           RawOrder
+}
+
+type RawCommandWithBalances struct {
+	Id              string
+	Exchange        string
+	Instrument      string
+	Direction       string
+	OrderType       string
+	LimitPrice      string
+	Amount          string
+	Status          string
+	ConnectorId     string
+	ExecutionType   string
+	ExecuteTillTime string
+	RefPositionId   string
+	TimeInForce     string
+	UpdateTime      string
+	AccountId       string
+	Balances        []RawBalance
+}
+
 func ToRaw(cmd *Command, dictionaries *dic.Dictionaries) *RawCommand {
 
 	var raw RawCommand
@@ -92,6 +130,87 @@ func ToRaw(cmd *Command, dictionaries *dic.Dictionaries) *RawCommand {
 	return &raw
 }
 
+func ToRawWithOrder(cmd *Command, dictionaries *dic.Dictionaries, order *Order) *RawCommandWithOrder {
+
+	raw := ToRaw(cmd, dictionaries)
+
+	var rawCommandWithOrder = RawCommandWithOrder{
+		Id:              raw.Id,
+		Exchange:        raw.Exchange,
+		Instrument:      raw.Instrument,
+		Direction:       raw.Direction,
+		OrderType:       raw.OrderType,
+		LimitPrice:      raw.LimitPrice,
+		Amount:          raw.Amount,
+		Status:          raw.Status,
+		ConnectorId:     raw.ConnectorId,
+		ExecutionType:   raw.ExecutionType,
+		ExecuteTillTime: raw.ExecuteTillTime,
+		RefPositionId:   raw.RefPositionId,
+		TimeInForce:     raw.TimeInForce,
+		UpdateTime:      raw.UpdateTime,
+		AccountId:       raw.AccountId,
+		Order:           *toRawOrder(order),
+	}
+
+	return &rawCommandWithOrder
+}
+
+func ToRawWithBalances(cmd *Command, dictionaries *dic.Dictionaries, balances *[]*Balance) *RawCommandWithBalances {
+
+	raw := ToRaw(cmd, dictionaries)
+
+	var rawCommandWithBalances = RawCommandWithBalances{
+		Id:              raw.Id,
+		Exchange:        raw.Exchange,
+		Instrument:      raw.Instrument,
+		Direction:       raw.Direction,
+		OrderType:       raw.OrderType,
+		LimitPrice:      raw.LimitPrice,
+		Amount:          raw.Amount,
+		Status:          raw.Status,
+		ConnectorId:     raw.ConnectorId,
+		ExecutionType:   raw.ExecutionType,
+		ExecuteTillTime: raw.ExecuteTillTime,
+		RefPositionId:   raw.RefPositionId,
+		TimeInForce:     raw.TimeInForce,
+		UpdateTime:      raw.UpdateTime,
+		AccountId:       raw.AccountId,
+		Balances:        *toRawBalances(balances),
+	}
+
+	return &rawCommandWithBalances
+}
+
+func toRawOrder(order *Order) *RawOrder {
+
+	raw := RawOrder{
+		Id:              strconv.FormatInt(order.Id, 10),
+		ExternalOrderId: strconv.FormatInt(order.ExternalOrderId, 10),
+		ExecutionId:     strconv.FormatInt(order.ExecutionId, 10),
+		Price:           fmt.Sprintf("%f", order.Price),
+		Commission:      fmt.Sprintf("%f", order.Commission), // TODO precision !!!!!!!!!!!!!!!!!!!
+		CommissionAsset: order.CommissionAsset,
+	}
+
+	return &raw
+}
+
+func toRawBalances(balances *[]*Balance) *[]RawBalance {
+
+	raw := make([]RawBalance, len(*balances))
+
+	for i, val := range *balances {
+		raw[i] = RawBalance{
+			Asset:  val.Asset,
+			Free:   fmt.Sprintf("%f", val.Free),
+			Locked: fmt.Sprintf("%f", val.Locked),
+		}
+	}
+
+	return &raw
+}
+
 type Order struct {
 	Id              int64
 	ExternalOrderId int64
@@ -101,14 +220,23 @@ type Order struct {
 	CommissionAsset string
 }
 
-//type RawBalance struct {
-//	Asset  string
-//	Free   string
-//	Locked string
-//}
+type RawOrder struct {
+	Id              string
+	ExternalOrderId string
+	ExecutionId     string
+	Price           string
+	Commission      string
+	CommissionAsset string
+}
 
 type Balance struct {
 	Asset  string
 	Free   float64
 	Locked float64
+}
+
+type RawBalance struct {
+	Asset  string
+	Free   string
+	Locked string
 }

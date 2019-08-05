@@ -22,6 +22,8 @@ const loadTimeInForceSql = "SELECT id, type FROM time_in_force"
 const loadExecutionTypesSql = "SELECT id, type FROM execution_type"
 const loadExecutionStatusSql = "SELECT id, value FROM execution_status"
 
+const getOrderByIdSql = "select id, external_order_id, execution_id, price, commission, commission_asset from orders where execution_id = $1"
+
 const getCommandIdByFingerPrintSql = "SELECT id FROM execution WHERE finger_print = $1"
 
 const insertCommandSql = "INSERT INTO execution (exchange_id, instrument_name, direction_id, order_type_id, limit_price, time_in_force_id, " +
@@ -467,19 +469,19 @@ func TryGetCommandForExecution(db *sql.DB, exchangeId int16, conId int16, validT
 	return command, nil
 }
 
-func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) { // TODO order and balances
+func LoadCommandById(db *sql.DB, id int64, statusCompletedId int16, orderTypeInfoId int16) (*cmd.Command, *cmd.Order, *[]*cmd.Balance, error) {
 
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: true})
 
 	if err != nil {
-		return nil, errors.New(err)
+		return nil, nil, nil, errors.New(err)
 	}
 
 	stmt, err := tx.Prepare(loadCommandByIdSql)
 
 	if err != nil {
 		_ = tx.Rollback()
-		return nil, errors.New(err)
+		return nil, nil, nil, errors.New(err)
 	}
 
 	row := stmt.QueryRow(id)
@@ -489,23 +491,62 @@ func LoadCommandById(db *sql.DB, id int64) (*cmd.Command, error) { // TODO order
 	if err != nil {
 		_ = stmt.Close()
 		_ = tx.Rollback()
-		return nil, err
+		return nil, nil, nil, err
 	}
 
 	err = stmt.Close()
 
 	if err != nil {
 		_ = tx.Rollback()
-		return nil, errors.New(err)
+		return nil, nil, nil, errors.New(err)
+	}
+
+	var order *cmd.Order = nil
+	var balances *[]*cmd.Balance = nil
+
+	if statusCompletedId == command.StatusId {
+
+		if orderTypeInfoId == command.OrderTypeId {
+
+			// TODO load balances
+
+		} else {
+
+			stmt, err := tx.Prepare(getOrderByIdSql)
+
+			if err != nil {
+				_ = tx.Rollback()
+				return nil, nil, nil, errors.New(err)
+			}
+
+			row := stmt.QueryRow(command.Id)
+
+			order = &cmd.Order{}
+
+			err = row.Scan(&order.Id, &order.ExternalOrderId, &order.ExecutionId, &order.Price, &order.Commission, &order.CommissionAsset)
+
+			if err != nil {
+				_ = stmt.Close()
+				_ = tx.Rollback()
+				return nil, nil, nil, err
+			}
+
+			err = stmt.Close()
+
+			if err != nil {
+				_ = tx.Rollback()
+				return nil, nil, nil, errors.New(err)
+			}
+		}
 	}
 
 	err = tx.Commit()
 
 	if err != nil {
-		return nil, errors.New(err)
+		return nil, nil, nil, errors.New(err)
 	}
 
-	return command, nil
+	return command, order, balances, nil
 }
 
 func nullString(s string) sql.NullString {
