@@ -1,9 +1,8 @@
 package cmd
 
 import (
-	"fmt"
 	dic "msq.ai/db/postgres/dictionaries"
-	"strconv"
+	"msq.ai/utils/math"
 	"time"
 )
 
@@ -91,7 +90,7 @@ func ToRaw(cmd *Command, dictionaries *dic.Dictionaries) *RawCommand {
 
 	var raw RawCommand
 
-	raw.Id = strconv.FormatInt(cmd.Id, 10)
+	raw.Id = math.Int64ToString(cmd.Id)
 	raw.Exchange = dictionaries.Exchanges().GetNameById(cmd.ExchangeId)
 	raw.Instrument = cmd.InstrumentName
 	raw.Direction = dictionaries.Directions().GetNameById(cmd.DirectionId)
@@ -100,13 +99,13 @@ func ToRaw(cmd *Command, dictionaries *dic.Dictionaries) *RawCommand {
 	if cmd.LimitPrice < 0 {
 		raw.LimitPrice = ""
 	} else {
-		raw.LimitPrice = fmt.Sprintf("%f", cmd.LimitPrice)
+		raw.LimitPrice = math.Float64ToString(cmd.LimitPrice)
 	}
 
 	if cmd.Amount <= 0 {
 		raw.Amount = ""
 	} else {
-		raw.Amount = fmt.Sprintf("%f", cmd.Amount)
+		raw.Amount = math.Float64ToString(cmd.Amount)
 	}
 
 	raw.Status = dictionaries.ExecutionStatuses().GetNameById(cmd.StatusId)
@@ -114,7 +113,7 @@ func ToRaw(cmd *Command, dictionaries *dic.Dictionaries) *RawCommand {
 	if cmd.ConnectorId < 0 {
 		raw.ConnectorId = ""
 	} else {
-		raw.ConnectorId = strconv.FormatInt(cmd.ConnectorId, 10)
+		raw.ConnectorId = math.Int64ToString(cmd.ConnectorId)
 	}
 
 	raw.ExecutionType = dictionaries.ExecutionTypes().GetNameById(cmd.ExecutionTypeId)
@@ -122,7 +121,7 @@ func ToRaw(cmd *Command, dictionaries *dic.Dictionaries) *RawCommand {
 	raw.RefPositionId = cmd.RefPositionId
 	raw.TimeInForce = dictionaries.TimeInForces().GetNameById(cmd.TimeInForceId)
 	raw.UpdateTime = cmd.UpdateTimestamp.Format(time.RFC3339)
-	raw.AccountId = strconv.FormatInt(cmd.AccountId, 10)
+	raw.AccountId = math.Int64ToString(cmd.AccountId)
 	raw.ApiKey = cmd.ApiKey
 	raw.SecretKey = cmd.SecretKey
 	raw.FingerPrint = cmd.FingerPrint
@@ -185,11 +184,11 @@ func ToRawWithBalances(cmd *Command, dictionaries *dic.Dictionaries, balances *[
 func toRawOrder(order *Order) *RawOrder {
 
 	raw := RawOrder{
-		Id:              strconv.FormatInt(order.Id, 10),
-		ExternalOrderId: strconv.FormatInt(order.ExternalOrderId, 10),
-		ExecutionId:     strconv.FormatInt(order.ExecutionId, 10),
-		Price:           fmt.Sprintf("%f", order.Price),
-		Commission:      fmt.Sprintf("%f", order.Commission), // TODO precision !!!!!!!!!!!!!!!!!!!
+		Id:              math.Int64ToString(order.Id),
+		ExternalOrderId: math.Int64ToString(order.ExternalOrderId),
+		ExecutionId:     math.Int64ToString(order.ExecutionId),
+		Price:           math.Float64ToString(order.Price),
+		Commission:      math.Float64ToString(order.Commission),
 		CommissionAsset: order.CommissionAsset,
 	}
 
@@ -202,11 +201,11 @@ func toRawBalances(balances *[]*Balance) *[]RawBalance {
 
 	for i, val := range *balances {
 		raw[i] = RawBalance{
-			Id:          strconv.FormatInt(val.Id, 10),
-			ExecutionId: strconv.FormatInt(val.ExecutionId, 10),
+			Id:          math.Int64ToString(val.Id),
+			ExecutionId: math.Int64ToString(val.ExecutionId),
 			Asset:       val.Asset,
-			Free:        fmt.Sprintf("%f", val.Free),
-			Locked:      fmt.Sprintf("%f", val.Locked),
+			Free:        math.Float64ToString(val.Free),
+			Locked:      math.Float64ToString(val.Locked),
 		}
 	}
 
