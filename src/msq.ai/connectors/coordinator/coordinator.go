@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+const limit = 10
+
 func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *proto.ExecRequest, in <-chan *proto.ExecResponse,
 	exchangeId int16, connectorId int16, connectorExecPoolSize uint32) {
 
@@ -89,11 +91,11 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 		db.SetMaxOpenConns(1)
 		db.SetConnMaxLifetime(time.Hour)
 
-		dbTryGetCommandForRecovery := func() *cmd.Command {
+		dbTryGetCommandForRecovery := func() *[]*cmd.Command {
 
 			statusExecutingId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusExecutingName)
 
-			result, err := dao.TryGetCommandForRecovery(db, exchangeId, connectorId, statusExecutingId, time.Now())
+			result, err := dao.TryGetCommandForRecovery(db, exchangeId, connectorId, statusExecutingId, time.Now(), limit)
 
 			if err != nil {
 				logErrWithST("TryGetCommandForRecovery error ! ", err)
@@ -126,30 +128,34 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 			forRecovery := dbTryGetCommandForRecovery()
 
-			if forRecovery == nil {
+			if forRecovery == nil || len(*forRecovery) == 0 {
 				break
 			}
 
 			ctxLog.Trace("Has command for recovery ", forRecovery)
 
-			for {
+			for _, command := range *forRecovery {
 
-				s := atomic.LoadUint32(&sending)
+				for {
 
-				if s <= connectorExecPoolSize {
+					s := atomic.LoadUint32(&sending)
 
-					atomic.AddUint32(&sending, 1)
+					if s <= connectorExecPoolSize {
 
-					out <- makeExecRequest(forRecovery, dictionaries, proto.CheckCmd)
+						atomic.AddUint32(&sending, 1)
 
-					for atomic.LoadUint32(&sending) != 0 {
-						time.Sleep(100 * time.Millisecond)
+						out <- makeExecRequest(command, dictionaries, proto.CheckCmd)
+
+						for atomic.LoadUint32(&sending) != 0 {
+							time.Sleep(100 * time.Millisecond)
+						}
+
+						break
 					}
 
-					break
+					time.Sleep(100 * time.Millisecond)
 				}
 
-				time.Sleep(100 * time.Millisecond)
 			}
 		}
 

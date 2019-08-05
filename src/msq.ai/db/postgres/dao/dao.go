@@ -47,7 +47,7 @@ const tryGetCommandForExecutionSql = selectCommandSql + " WHERE exchange_id = $1
 const finishStaleCommandsSql = selectCommandSql + " WHERE status_id = $1 AND execute_till_time < $2 FOR UPDATE LIMIT $3"
 
 const tryGetCommandForRecoverySql = selectCommandSql + " WHERE exchange_id = $1 AND status_id = $2 AND connector_id = $3 " +
-	"AND update_timestamp < $4 FOR UPDATE LIMIT 1"
+	"AND update_timestamp < $4 FOR UPDATE LIMIT $5"
 
 const updateCommandStatusByIdSql = "UPDATE execution SET status_id = $1, connector_id = $2, update_timestamp = $3 WHERE id = $4"
 
@@ -117,7 +117,14 @@ func FinishStaleCommands(db *sql.DB, statusCreatedId int16, statusTimedOutId int
 		return nil, errors.New(err)
 	}
 
-	rows, err := tx.Query(finishStaleCommandsSql, statusCreatedId, baseLine, limit)
+	stmt, err := tx.Prepare(finishStaleCommandsSql)
+
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, errors.New(err)
+	}
+
+	rows, err := stmt.Query(statusCreatedId, baseLine, limit)
 
 	if err != nil {
 		_ = tx.Rollback()
@@ -136,7 +143,9 @@ func FinishStaleCommands(db *sql.DB, statusCreatedId int16, statusTimedOutId int
 			return nil, err
 		}
 
-		commands = append(commands, command)
+		if command != nil {
+			commands = append(commands, command)
+		}
 	}
 
 	if err = rows.Err(); err != nil {
@@ -146,6 +155,13 @@ func FinishStaleCommands(db *sql.DB, statusCreatedId int16, statusTimedOutId int
 	}
 
 	err = rows.Close()
+
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, errors.New(err)
+	}
+
+	err = stmt.Close()
 
 	if err != nil {
 		_ = tx.Rollback()
@@ -177,7 +193,7 @@ func FinishStaleCommands(db *sql.DB, statusCreatedId int16, statusTimedOutId int
 	return &commands, nil
 }
 
-func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusExecutingId int16, baseLine time.Time) (*cmd.Command, error) {
+func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusExecutingId int16, baseLine time.Time, limit int16) (*[]*cmd.Command, error) {
 
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
 
@@ -192,14 +208,41 @@ func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusE
 		return nil, errors.New(err)
 	}
 
-	row := stmt.QueryRow(exchangeId, statusExecutingId, conId, baseLine)
-
-	command, err := scanRowCommand(row, nil)
+	rows, err := stmt.Query(exchangeId, statusExecutingId, conId, baseLine, limit)
 
 	if err != nil {
-		_ = stmt.Close()
 		_ = tx.Rollback()
-		return nil, err
+		return nil, errors.New(err)
+	}
+
+	commands := make([]*cmd.Command, 0)
+
+	for rows.Next() {
+
+		command, err := scanRowCommand(nil, rows)
+
+		if err != nil {
+			_ = rows.Close()
+			_ = tx.Rollback()
+			return nil, err
+		}
+
+		if command != nil {
+			commands = append(commands, command)
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		_ = rows.Close()
+		_ = tx.Rollback()
+		return nil, errors.New(err)
+	}
+
+	err = rows.Close()
+
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, errors.New(err)
 	}
 
 	err = stmt.Close()
@@ -209,37 +252,32 @@ func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusE
 		return nil, errors.New(err)
 	}
 
-	if command == nil {
+	if len(commands) > 0 {
 
-		err = tx.Commit()
+		stmt, err = tx.Prepare(updateCommandTimestampByIdSql)
 
 		if err != nil {
+			_ = tx.Rollback()
 			return nil, errors.New(err)
 		}
 
-		return nil, nil
-	}
+		for _, command := range commands {
 
-	stmt, err = tx.Prepare(updateCommandTimestampByIdSql)
+			_, err = stmt.Exec(time.Now(), command.Id)
 
-	if err != nil {
-		_ = tx.Rollback()
-		return nil, errors.New(err)
-	}
+			if err != nil {
+				_ = stmt.Close()
+				_ = tx.Rollback()
+				return nil, errors.New(err)
+			}
+		}
 
-	_, err = stmt.Exec(time.Now(), command.Id)
+		err = stmt.Close()
 
-	if err != nil {
-		_ = stmt.Close()
-		_ = tx.Rollback()
-		return nil, errors.New(err)
-	}
-
-	err = stmt.Close()
-
-	if err != nil {
-		_ = tx.Rollback()
-		return nil, errors.New(err)
+		if err != nil {
+			_ = tx.Rollback()
+			return nil, errors.New(err)
+		}
 	}
 
 	err = tx.Commit()
@@ -248,7 +286,11 @@ func TryGetCommandForRecovery(db *sql.DB, exchangeId int16, conId int16, statusE
 		return nil, errors.New(err)
 	}
 
-	return command, nil
+	if len(commands) == 0 {
+		return nil, nil
+	}
+
+	return &commands, nil
 }
 
 func finishExecution(tx *sql.Tx, executionId int64, connectorId int16, currentStatusId int16, newStatusId int16, description string,
@@ -501,6 +543,11 @@ func LoadCommandById(db *sql.DB, id int64, statusCompletedId int16, orderTypeInf
 	if err != nil {
 		_ = tx.Rollback()
 		return nil, nil, nil, errors.New(err)
+	}
+
+	if command == nil {
+		_ = tx.Rollback()
+		return nil, nil, nil, nil
 	}
 
 	var order *cmd.Order = nil
