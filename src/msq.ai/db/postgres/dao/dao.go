@@ -24,6 +24,8 @@ const loadExecutionStatusSql = "SELECT id, value FROM execution_status"
 
 const getOrderByIdSql = "select id, external_order_id, execution_id, price, commission, commission_asset from orders where execution_id = $1"
 
+const getBalancesByExecutionIdSql = "select id, execution_id, asset, free, locked from balances where execution_id = $1"
+
 const getCommandIdByFingerPrintSql = "SELECT id FROM execution WHERE finger_print = $1"
 
 const insertCommandSql = "INSERT INTO execution (exchange_id, instrument_name, direction_id, order_type_id, limit_price, time_in_force_id, " +
@@ -502,13 +504,55 @@ func LoadCommandById(db *sql.DB, id int64, statusCompletedId int16, orderTypeInf
 	}
 
 	var order *cmd.Order = nil
-	var balances *[]*cmd.Balance = nil
+	var balances []*cmd.Balance
 
 	if statusCompletedId == command.StatusId {
 
 		if orderTypeInfoId == command.OrderTypeId {
 
-			// TODO load balances
+			stmt, err := tx.Prepare(getBalancesByExecutionIdSql)
+
+			if err != nil {
+				_ = tx.Rollback()
+				return nil, nil, nil, errors.New(err)
+			}
+
+			rows, err := stmt.Query(command.Id)
+
+			if err != nil {
+				_ = tx.Rollback()
+				return nil, nil, nil, errors.New(err)
+			}
+
+			balances = make([]*cmd.Balance, 0)
+
+			for rows.Next() {
+
+				var b cmd.Balance
+
+				err = rows.Scan(&b.Id, &b.ExecutionId, &b.Asset, &b.Free, &b.Locked)
+
+				if err != nil {
+					_ = rows.Close()
+					_ = tx.Rollback()
+					return nil, nil, nil, errors.New(err)
+				}
+
+				balances = append(balances, &b)
+			}
+
+			if err = rows.Err(); err != nil {
+				_ = rows.Close()
+				_ = tx.Rollback()
+				return nil, nil, nil, errors.New(err)
+			}
+
+			err = rows.Close()
+
+			if err != nil {
+				_ = tx.Rollback()
+				return nil, nil, nil, errors.New(err)
+			}
 
 		} else {
 
@@ -546,7 +590,7 @@ func LoadCommandById(db *sql.DB, id int64, statusCompletedId int16, orderTypeInf
 		return nil, nil, nil, errors.New(err)
 	}
 
-	return command, order, balances, nil
+	return command, order, &balances, nil
 }
 
 func nullString(s string) sql.NullString {

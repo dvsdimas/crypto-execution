@@ -202,9 +202,11 @@ func toRawBalances(balances *[]*Balance) *[]RawBalance {
 
 	for i, val := range *balances {
 		raw[i] = RawBalance{
-			Asset:  val.Asset,
-			Free:   fmt.Sprintf("%f", val.Free),
-			Locked: fmt.Sprintf("%f", val.Locked),
+			Id:          strconv.FormatInt(val.Id, 10),
+			ExecutionId: strconv.FormatInt(val.ExecutionId, 10),
+			Asset:       val.Asset,
+			Free:        fmt.Sprintf("%f", val.Free),
+			Locked:      fmt.Sprintf("%f", val.Locked),
 		}
 	}
 
@@ -230,13 +232,17 @@ type RawOrder struct {
 }
 
 type Balance struct {
-	Asset  string
-	Free   float64
-	Locked float64
+	Id          int64
+	ExecutionId int64
+	Asset       string
+	Free        float64
+	Locked      float64
 }
 
 type RawBalance struct {
-	Asset  string
-	Free   string
-	Locked string
+	Id          string
+	ExecutionId string
+	Asset       string
+	Free        string
+	Locked      string
 }
