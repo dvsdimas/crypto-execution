@@ -106,12 +106,12 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 			return result
 		}
 
-		dbTryGetCommandForExecution := func() *cmd.Command {
+		dbTryGetCommandForExecution := func() *[]*cmd.Command {
 
 			statusCreatedId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusCreatedName)
 			statusExecutingId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusExecutingName)
 
-			result, err := dao.TryGetCommandForExecution(db, exchangeId, connectorId, time.Now().Add(future), statusCreatedId, statusExecutingId, 1)
+			result, err := dao.TryGetCommandForExecution(db, exchangeId, connectorId, time.Now().Add(future), statusCreatedId, statusExecutingId, limit)
 
 			if err != nil {
 				logErrWithST("dbTryGetCommandForExecution error ! ", err)
@@ -161,26 +161,29 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 		ctxLog.Info("Recovery procedure finished")
 
-		var command *cmd.Command
+		var commands *[]*cmd.Command
 		var raw *cmd.RawCommand
 
 		for {
 
 			s := atomic.LoadUint32(&sending)
 
-			if s <= connectorExecPoolSize {
+			if s+limit <= connectorExecPoolSize {
 
-				command = dbTryGetCommandForExecution()
+				commands = dbTryGetCommandForExecution()
 
-				if command != nil {
+				if commands != nil && len(*commands) > 0 {
 
-					raw = cmd.ToRaw(command, dictionaries)
+					for _, command := range *commands {
 
-					ctxLog.Trace("New command for execution", raw)
+						raw = cmd.ToRaw(command, dictionaries)
 
-					atomic.AddUint32(&sending, 1)
+						ctxLog.Trace("New command for execution", raw)
 
-					out <- makeExecRequest(command, dictionaries, proto.ExecuteCmd)
+						atomic.AddUint32(&sending, 1)
+
+						out <- makeExecRequest(command, dictionaries, proto.ExecuteCmd)
+					}
 
 					continue
 				}
