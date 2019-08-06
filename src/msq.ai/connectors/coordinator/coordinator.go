@@ -91,14 +91,14 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 		db.SetMaxOpenConns(1)
 		db.SetConnMaxLifetime(time.Hour)
 
-		dbTryGetCommandForRecovery := func() *[]*cmd.Command {
+		dbTryGetCommandsForRecovery := func() *[]*cmd.Command {
 
 			statusExecutingId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusExecutingName)
 
-			result, err := dao.TryGetCommandForRecovery(db, exchangeId, connectorId, statusExecutingId, time.Now(), limit)
+			result, err := dao.TryGetCommandsForRecovery(db, exchangeId, connectorId, statusExecutingId, time.Now(), limit)
 
 			if err != nil {
-				logErrWithST("TryGetCommandForRecovery error ! ", err)
+				logErrWithST("TryGetCommandsForRecovery error ! ", err)
 				time.Sleep(5 * time.Second)
 				return nil
 			}
@@ -106,15 +106,15 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 			return result
 		}
 
-		dbTryGetCommandForExecution := func() *[]*cmd.Command {
+		dbTryGetCommandsForExecution := func() *[]*cmd.Command {
 
 			statusCreatedId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusCreatedName)
 			statusExecutingId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusExecutingName)
 
-			result, err := dao.TryGetCommandForExecution(db, exchangeId, connectorId, time.Now().Add(future), statusCreatedId, statusExecutingId, limit)
+			result, err := dao.TryGetCommandsForExecution(db, exchangeId, connectorId, time.Now().Add(future), statusCreatedId, statusExecutingId, limit)
 
 			if err != nil {
-				logErrWithST("dbTryGetCommandForExecution error ! ", err)
+				logErrWithST("dbTryGetCommandsForExecution error ! ", err)
 				time.Sleep(5 * time.Second)
 				return nil
 			}
@@ -126,7 +126,7 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 		for {
 
-			forRecovery := dbTryGetCommandForRecovery()
+			forRecovery := dbTryGetCommandsForRecovery()
 
 			if forRecovery == nil || len(*forRecovery) == 0 {
 				break
@@ -170,7 +170,7 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 			if s+limit <= connectorExecPoolSize {
 
-				commands = dbTryGetCommandForExecution()
+				commands = dbTryGetCommandsForExecution()
 
 				if commands != nil && len(*commands) > 0 {
 
