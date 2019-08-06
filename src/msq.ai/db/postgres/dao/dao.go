@@ -22,9 +22,11 @@ const loadTimeInForceSql = "SELECT id, type FROM time_in_force"
 const loadExecutionTypesSql = "SELECT id, type FROM execution_type"
 const loadExecutionStatusSql = "SELECT id, value FROM execution_status"
 
-const getOrderByIdSql = "select id, external_order_id, execution_id, price, commission, commission_asset from orders where execution_id = $1"
+const getOrderByIdSql = "SELECT id, external_order_id, execution_id, price, commission, commission_asset FROM orders WHERE execution_id = $1"
 
-const getBalancesByExecutionIdSql = "select id, execution_id, asset, free, locked from balances where execution_id = $1"
+const getErrorDescriptionByIdSql = "SELECT description FROM execution_history WHERE execution_id = $1 AND status_to_id = $2"
+
+const getBalancesByExecutionIdSql = "SELECT id, execution_id, asset, free, locked FROM balances WHERE execution_id = $1"
 
 const getCommandIdByFingerPrintSql = "SELECT id FROM execution WHERE finger_print = $1"
 
@@ -556,19 +558,20 @@ func TryGetCommandsForExecution(db *sql.DB, exchangeId int16, conId int16, valid
 	return &commands, nil
 }
 
-func LoadCommandById(db *sql.DB, id int64, statusCompletedId int16, orderTypeInfoId int16) (*cmd.Command, *cmd.Order, *[]*cmd.Balance, error) {
+func LoadCommandById(db *sql.DB, id int64, statusCompletedId int16, statusErrorId int16, orderTypeInfoId int16) (*cmd.Command,
+	*cmd.Order, *[]*cmd.Balance, *sql.NullString, error) {
 
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: true})
 
 	if err != nil {
-		return nil, nil, nil, errors.New(err)
+		return nil, nil, nil, nil, errors.New(err)
 	}
 
 	stmt, err := tx.Prepare(loadCommandByIdSql)
 
 	if err != nil {
 		_ = tx.Rollback()
-		return nil, nil, nil, errors.New(err)
+		return nil, nil, nil, nil, errors.New(err)
 	}
 
 	row := stmt.QueryRow(id)
@@ -578,23 +581,24 @@ func LoadCommandById(db *sql.DB, id int64, statusCompletedId int16, orderTypeInf
 	if err != nil {
 		_ = stmt.Close()
 		_ = tx.Rollback()
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	err = stmt.Close()
 
 	if err != nil {
 		_ = tx.Rollback()
-		return nil, nil, nil, errors.New(err)
+		return nil, nil, nil, nil, errors.New(err)
 	}
 
 	if command == nil {
 		_ = tx.Rollback()
-		return nil, nil, nil, nil
+		return nil, nil, nil, nil, nil
 	}
 
 	var order *cmd.Order = nil
-	var balances []*cmd.Balance
+	var balances []*cmd.Balance = nil
+	var description = &sql.NullString{Valid: true, String: ""}
 
 	if statusCompletedId == command.StatusId {
 
@@ -604,7 +608,7 @@ func LoadCommandById(db *sql.DB, id int64, statusCompletedId int16, orderTypeInf
 
 			if err != nil {
 				_ = tx.Rollback()
-				return nil, nil, nil, errors.New(err)
+				return nil, nil, nil, nil, errors.New(err)
 			}
 
 			rows, err := stmt.Query(command.Id)
@@ -612,7 +616,7 @@ func LoadCommandById(db *sql.DB, id int64, statusCompletedId int16, orderTypeInf
 			if err != nil {
 				_ = stmt.Close()
 				_ = tx.Rollback()
-				return nil, nil, nil, errors.New(err)
+				return nil, nil, nil, nil, errors.New(err)
 			}
 
 			balances = make([]*cmd.Balance, 0)
@@ -627,7 +631,7 @@ func LoadCommandById(db *sql.DB, id int64, statusCompletedId int16, orderTypeInf
 					_ = rows.Close()
 					_ = stmt.Close()
 					_ = tx.Rollback()
-					return nil, nil, nil, errors.New(err)
+					return nil, nil, nil, nil, errors.New(err)
 				}
 
 				balances = append(balances, &b)
@@ -637,7 +641,7 @@ func LoadCommandById(db *sql.DB, id int64, statusCompletedId int16, orderTypeInf
 				_ = rows.Close()
 				_ = stmt.Close()
 				_ = tx.Rollback()
-				return nil, nil, nil, errors.New(err)
+				return nil, nil, nil, nil, errors.New(err)
 			}
 
 			err = rows.Close()
@@ -645,14 +649,14 @@ func LoadCommandById(db *sql.DB, id int64, statusCompletedId int16, orderTypeInf
 			if err != nil {
 				_ = stmt.Close()
 				_ = tx.Rollback()
-				return nil, nil, nil, errors.New(err)
+				return nil, nil, nil, nil, errors.New(err)
 			}
 
 			err = stmt.Close()
 
 			if err != nil {
 				_ = tx.Rollback()
-				return nil, nil, nil, errors.New(err)
+				return nil, nil, nil, nil, errors.New(err)
 			}
 
 		} else {
@@ -661,7 +665,7 @@ func LoadCommandById(db *sql.DB, id int64, statusCompletedId int16, orderTypeInf
 
 			if err != nil {
 				_ = tx.Rollback()
-				return nil, nil, nil, errors.New(err)
+				return nil, nil, nil, nil, errors.New(err)
 			}
 
 			row := stmt.QueryRow(command.Id)
@@ -673,25 +677,50 @@ func LoadCommandById(db *sql.DB, id int64, statusCompletedId int16, orderTypeInf
 			if err != nil {
 				_ = stmt.Close()
 				_ = tx.Rollback()
-				return nil, nil, nil, err
+				return nil, nil, nil, nil, err
 			}
 
 			err = stmt.Close()
 
 			if err != nil {
 				_ = tx.Rollback()
-				return nil, nil, nil, errors.New(err)
+				return nil, nil, nil, nil, errors.New(err)
 			}
+		}
+	} else if statusErrorId == command.StatusId {
+
+		stmt, err := tx.Prepare(getErrorDescriptionByIdSql)
+
+		if err != nil {
+			_ = tx.Rollback()
+			return nil, nil, nil, nil, errors.New(err)
+		}
+
+		row := stmt.QueryRow(command.Id, statusErrorId)
+
+		err = row.Scan(description)
+
+		if err != nil {
+			_ = stmt.Close()
+			_ = tx.Rollback()
+			return nil, nil, nil, nil, err
+		}
+
+		err = stmt.Close()
+
+		if err != nil {
+			_ = tx.Rollback()
+			return nil, nil, nil, nil, errors.New(err)
 		}
 	}
 
 	err = tx.Commit()
 
 	if err != nil {
-		return nil, nil, nil, errors.New(err)
+		return nil, nil, nil, nil, errors.New(err)
 	}
 
-	return command, order, &balances, nil
+	return command, order, &balances, description, nil
 }
 
 func nullString(s string) sql.NullString {

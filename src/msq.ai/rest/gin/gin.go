@@ -1,6 +1,7 @@
 package gin
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-errors/errors"
@@ -40,14 +41,15 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 	}
 
 	executionStatusCompletedId := dictionaries.ExecutionStatuses().GetIdByName(con.ExecutionStatusCompletedName)
+	executionStatusErrorId := dictionaries.ExecutionStatuses().GetIdByName(con.ExecutionStatusErrorName)
 	orderTypeInfoId := dictionaries.OrderTypes().GetIdByName(con.OrderTypeInfoName)
 
 	db.SetMaxIdleConns(10)
 	db.SetMaxOpenConns(30)
 	db.SetConnMaxLifetime(time.Hour)
 
-	dbLoadCommandById := func(id int64) (*comd.Command, *comd.Order, *[]*comd.Balance, error) {
-		return dao.LoadCommandById(db, id, executionStatusCompletedId, orderTypeInfoId)
+	dbLoadCommandById := func(id int64) (*comd.Command, *comd.Order, *[]*comd.Balance, *sql.NullString, error) {
+		return dao.LoadCommandById(db, id, executionStatusCompletedId, executionStatusErrorId, orderTypeInfoId)
 	}
 
 	dbInsertCommand := func(exchangeId int16, instrumentVal string, directionId int16, orderTypeId int16, limitPrice float64,
@@ -83,7 +85,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 		ctxLog.Trace("id [", id, "]")
 
-		command, order, balances, err := dbLoadCommandById(id)
+		command, order, balances, description, err := dbLoadCommandById(id)
 
 		if err != nil {
 
@@ -120,7 +122,7 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 			}
 		}
 
-		c.JSON(http.StatusOK, comd.ToRaw(command, dictionaries))
+		c.JSON(http.StatusOK, comd.ToRawWithDescription(command, dictionaries, description))
 	}
 
 	router := gin.Default()

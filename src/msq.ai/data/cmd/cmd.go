@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"database/sql"
 	dic "msq.ai/db/postgres/dictionaries"
 	"msq.ai/utils/math"
 	"time"
@@ -86,6 +87,25 @@ type RawCommandWithBalances struct {
 	Balances        []RawBalance
 }
 
+type RawCommandWithDescription struct {
+	Id              string
+	Exchange        string
+	Instrument      string
+	Direction       string
+	OrderType       string
+	LimitPrice      string
+	Amount          string
+	Status          string
+	ConnectorId     string
+	ExecutionType   string
+	ExecuteTillTime string
+	RefPositionId   string
+	TimeInForce     string
+	UpdateTime      string
+	AccountId       string
+	Description     string
+}
+
 func ToRaw(cmd *Command, dictionaries *dic.Dictionaries) *RawCommand {
 
 	var raw RawCommand
@@ -127,6 +147,36 @@ func ToRaw(cmd *Command, dictionaries *dic.Dictionaries) *RawCommand {
 	raw.FingerPrint = cmd.FingerPrint
 
 	return &raw
+}
+
+func ToRawWithDescription(cmd *Command, dictionaries *dic.Dictionaries, description *sql.NullString) *RawCommandWithDescription {
+
+	raw := ToRaw(cmd, dictionaries)
+
+	var rawCommandWithDescription = RawCommandWithDescription{
+		Id:              raw.Id,
+		Exchange:        raw.Exchange,
+		Instrument:      raw.Instrument,
+		Direction:       raw.Direction,
+		OrderType:       raw.OrderType,
+		LimitPrice:      raw.LimitPrice,
+		Amount:          raw.Amount,
+		Status:          raw.Status,
+		ConnectorId:     raw.ConnectorId,
+		ExecutionType:   raw.ExecutionType,
+		ExecuteTillTime: raw.ExecuteTillTime,
+		RefPositionId:   raw.RefPositionId,
+		TimeInForce:     raw.TimeInForce,
+		UpdateTime:      raw.UpdateTime,
+		AccountId:       raw.AccountId,
+		Description:     "",
+	}
+
+	if description != nil && description.Valid {
+		rawCommandWithDescription.Description = description.String
+	}
+
+	return &rawCommandWithDescription
 }
 
 func ToRawWithOrder(cmd *Command, dictionaries *dic.Dictionaries, order *Order) *RawCommandWithOrder {
