@@ -10,6 +10,7 @@ CREATE TABLE "exchange" (
 
 INSERT INTO "exchange" ("id", "name") VALUES (1, 'BINANCE');
 INSERT INTO "exchange" ("id", "name") VALUES (2, 'KRAKEN');
+INSERT INTO "exchange" ("id", "name") VALUES (3, 'IB');
 
 
 CREATE TABLE "direction" (
