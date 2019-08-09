@@ -1,7 +1,6 @@
 package math
 
 import (
-	"fmt"
 	"math"
 	"strconv"
 )
@@ -18,7 +17,7 @@ func IsZero(val float64) bool {
 }
 
 func Float64ToString(val float64) string {
-	return fmt.Sprintf("%.10f", val)
+	return strconv.FormatFloat(val, 'f', -10, 64)
 }
 
 func Int64ToString(val int64) string {

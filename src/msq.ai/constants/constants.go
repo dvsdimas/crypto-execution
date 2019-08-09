@@ -14,7 +14,7 @@ const OrderTypeInfoName string = "INFO"
 const OrderDirectionBuyName string = "BUY"
 const OrderDirectionSellName string = "SELL"
 
-//const TimeInForceFokName string = "FOK"
+const TimeInForceFokName string = "FOK"
 const TimeInForceGtcName string = "GTC"
 
 const ExecutionStatusCreatedName string = "CREATED"
@@ -22,3 +22,4 @@ const ExecutionStatusExecutingName string = "EXECUTING"
 const ExecutionStatusErrorName string = "ERROR"
 const ExecutionStatusCompletedName string = "COMPLETED"
 const ExecutionStatusTimedOutName string = "TIMED_OUT"
+const ExecutionStatusRejectedName string = "REJECTED"

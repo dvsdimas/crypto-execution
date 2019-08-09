@@ -19,6 +19,7 @@ const (
 	StatusError Status = iota
 	StatusOk
 	StatusTimedOut
+	StatusRejected
 )
 
 type ExecRequest struct {

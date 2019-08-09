@@ -15,6 +15,7 @@ import (
 )
 
 const filledValue = "FILLED"
+const expiredValue = "EXPIRED"
 const orderNotExistError = -2013
 
 func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse, execPoolSize int) {
@@ -29,7 +30,7 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 
 		var fill = ""
 
-		if order.Fills != nil && order.Fills[0] != nil {
+		if order.Fills != nil && len(order.Fills) > 0 && order.Fills[0] != nil {
 			fill = fmt.Sprintf("%+v", order.Fills[0])
 		}
 
@@ -54,7 +55,7 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 
 		if request.RawCmd.OrderType == constants.OrderTypeMarketName {
 			orderService = orderService.Type(binance.OrderTypeMarket)
-		} else if request.RawCmd.Direction == constants.OrderTypeLimitName {
+		} else if request.RawCmd.OrderType == constants.OrderTypeLimitName {
 			orderService = orderService.Type(binance.OrderTypeLimit)
 			orderService = orderService.Price(request.RawCmd.LimitPrice)
 		} else {
@@ -71,13 +72,17 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 			return nil
 		}
 
-		if request.RawCmd.TimeInForce == constants.TimeInForceGtcName {
-			// orderService = orderService.TimeInForce(binance.TimeInForceGTC)
-		} else {
-			msg := "Protocol violation! ExecRequest has wrong TimeInForce. Binance supported only GTC !"
-			ctxLog.Error(msg, request)
-			response.Description = msg
-			return response
+		if request.RawCmd.OrderType == constants.OrderTypeLimitName {
+			if request.RawCmd.TimeInForce == constants.TimeInForceGtcName {
+				orderService = orderService.TimeInForce(binance.TimeInForceGTC)
+			} else if request.RawCmd.TimeInForce == constants.TimeInForceFokName {
+				orderService = orderService.TimeInForce(binance.TimeInForceFOK)
+			} else {
+				msg := "Protocol violation! ExecRequest has wrong TimeInForce."
+				ctxLog.Error(msg, request)
+				response.Description = msg
+				return response
+			}
 		}
 
 		orderService = orderService.Quantity(request.RawCmd.Amount)
@@ -105,8 +110,19 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 				return response
 			}
 
-		} else { // constants.OrderTypeLimitName
-			// TODO
+		} else if request.RawCmd.OrderType == constants.OrderTypeLimitName {
+
+			if order.Status == expiredValue {
+				response.Description = "Order rejected"
+				response.Status = proto.StatusRejected
+				return response
+			} else if order.Status != filledValue {
+				response.Description = "Order wasn't fill"
+				return response
+			}
+
+		} else {
+			ctxLog.Fatal("Protocol violation! ExecRequest has wrong OrderType.", request)
 		}
 
 		response.Order = &cmd.Order{}
@@ -175,8 +191,19 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 				return response
 			}
 
-		} else { // constants.OrderTypeLimitName
-			// TODO
+		} else if request.RawCmd.OrderType == constants.OrderTypeLimitName {
+
+			if order.Status == expiredValue {
+				response.Description = "Order rejected"
+				response.Status = proto.StatusRejected
+				return response
+			} else if order.Status != filledValue {
+				response.Description = "Order wasn't fill"
+				return response
+			}
+
+		} else {
+			ctxLog.Fatal("Protocol violation! ExecRequest has wrong OrderType.", request)
 		}
 
 		response.Order = &cmd.Order{}

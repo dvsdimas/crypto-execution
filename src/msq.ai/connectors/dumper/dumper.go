@@ -65,21 +65,28 @@ func RunDumper(dburl string, dictionaries *dic.Dictionaries, in <-chan *proto.Ex
 	statusErrorId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusErrorName)
 	statusCompletedId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusCompletedName)
 	statusTimedOutId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusTimedOutName)
+	statusRejectedId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusRejectedName)
 
 	dumpResponse := func(response *proto.ExecResponse) error {
 
 		ctxLog.Trace("Dumping response", response)
 
-		if response.Status == proto.StatusError {
+		if response.Status == proto.StatusRejected {
 
 			return dao.FinishExecution(db, response.Request.Cmd.Id, int16(response.Request.Cmd.ConnectorId), statusExecutingId,
-				statusErrorId, response.Description, nil, &response.Balances)
+				statusRejectedId, response.Description, nil, &response.Balances)
 		}
 
 		if response.Status == proto.StatusTimedOut {
 
 			return dao.FinishExecution(db, response.Request.Cmd.Id, int16(response.Request.Cmd.ConnectorId), statusExecutingId,
 				statusTimedOutId, response.Description, nil, &response.Balances)
+		}
+
+		if response.Status == proto.StatusError {
+
+			return dao.FinishExecution(db, response.Request.Cmd.Id, int16(response.Request.Cmd.ConnectorId), statusExecutingId,
+				statusErrorId, response.Description, nil, &response.Balances)
 		}
 
 		if response.Status == proto.StatusOk {
