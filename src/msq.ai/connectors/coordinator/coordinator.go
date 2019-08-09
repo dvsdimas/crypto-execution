@@ -62,7 +62,6 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 		db.SetMaxIdleConns(1)
 		db.SetMaxOpenConns(3)
-		db.SetConnMaxLifetime(time.Hour)
 
 		for {
 			response := <-in
@@ -89,7 +88,6 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 		db.SetMaxIdleConns(1)
 		db.SetMaxOpenConns(1)
-		db.SetConnMaxLifetime(time.Hour)
 
 		dbTryGetCommandsForRecovery := func() *[]*cmd.Command {
 

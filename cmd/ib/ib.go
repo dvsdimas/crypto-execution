@@ -10,12 +10,13 @@ import (
 	"msq.ai/constants"
 	"msq.ai/db/postgres/dao"
 	pgh "msq.ai/db/postgres/helper"
+	"msq.ai/exchange/ecib"
 	"os"
 	"time"
 )
 
 const propertiesFileName string = "ib.properties"
-const connectorsExecPoolSize = 200 // TODO ?
+const connectorsExecPoolSize = 200
 const dumperExecPoolSize = 10
 
 func init() {
@@ -77,7 +78,7 @@ func main() {
 	responses := make(chan *proto.ExecResponse)
 	dump := make(chan *proto.ExecResponse)
 
-	// TODO ecbinance.RunBinanceConnector(requests, responses, connectorsExecPoolSize)
+	ecib.RunIbConnector(requests, responses)
 
 	//----------------------------------------- start dumper ------------------------------------------------------
 
@@ -99,7 +100,7 @@ func main() {
 		ctxLog.Fatal("Illegal connectorId ! ", connectorId)
 	}
 
-	cord.RunCoordinator(url, dictionaries, requests, dump, exchangeId, connectorId, 1) // TODO connectorsExecPoolSize
+	cord.RunCoordinator(url, dictionaries, requests, dump, exchangeId, connectorId, connectorsExecPoolSize)
 
 	//------------------------------------------------------------------------------------------------------------------
 

@@ -39,7 +39,6 @@ func RunTimeOuter(dburl string, dictionaries *dic.Dictionaries) {
 
 	db.SetMaxIdleConns(1)
 	db.SetMaxOpenConns(1)
-	db.SetConnMaxLifetime(time.Hour)
 
 	statusCreatedId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusCreatedName)
 	statusTimedOutId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusTimedOutName)

@@ -46,7 +46,6 @@ func RunGinRestService(dburl string, dictionaries *dic.Dictionaries, timeForExec
 
 	db.SetMaxIdleConns(10)
 	db.SetMaxOpenConns(30)
-	db.SetConnMaxLifetime(time.Hour)
 
 	dbLoadCommandById := func(id int64) (*comd.Command, *comd.Order, *[]*comd.Balance, *sql.NullString, error) {
 		return dao.LoadCommandById(db, id, executionStatusCompletedId, executionStatusErrorId, orderTypeInfoId)
