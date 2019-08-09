@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-const propertiesFileName string = "binance.properties"
+const propertiesFileName = "binance.properties"
 const connectorsExecPoolSize = 200
 const dumperExecPoolSize = 10
 

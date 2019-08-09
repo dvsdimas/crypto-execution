@@ -15,7 +15,8 @@ import (
 	"time"
 )
 
-const propertiesFileName string = "ib.properties"
+const propertiesFileName = "ib.properties"
+const propertiesWsUrlName = "ws.url"
 const connectorsExecPoolSize = 200
 const dumperExecPoolSize = 10
 
@@ -74,11 +75,17 @@ func main() {
 
 	//------------------------------------ start IB connector  ----------------------------------------------------
 
+	wsUrl := properties.MustGet(propertiesWsUrlName)
+
+	if len(wsUrl) < 1 {
+		log.Fatal("[" + propertiesWsUrlName + "] is wrong ! = [" + wsUrl + "]")
+	}
+
 	requests := make(chan *proto.ExecRequest)
 	responses := make(chan *proto.ExecResponse)
 	dump := make(chan *proto.ExecResponse)
 
-	ecib.RunIbConnector(requests, responses)
+	ecib.RunIbConnector(requests, responses, wsUrl)
 
 	//----------------------------------------- start dumper ------------------------------------------------------
 

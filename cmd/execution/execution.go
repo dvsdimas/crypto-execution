@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const propertiesFileName string = "execution.properties"
+const propertiesFileName = "execution.properties"
 
 func init() {
 

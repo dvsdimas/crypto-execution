@@ -2,28 +2,28 @@ package constants
 
 import "time"
 
-const PostgresUrlPropertyName string = "postgres.url"
-const CommandTimeForExecutionSecondsPropertyName string = "command.time.for.execution.seconds"
-const ExchangeNamePropertyName string = "exchange.name"
-const ConnectorIdPropertyName string = "connector.id"
+const PostgresUrlPropertyName = "postgres.url"
+const CommandTimeForExecutionSecondsPropertyName = "command.time.for.execution.seconds"
+const ExchangeNamePropertyName = "exchange.name"
+const ConnectorIdPropertyName = "connector.id"
 
-const DbName string = "postgres"
+const DbName = "postgres"
 
-const OrderTypeLimitName string = "LIMIT"
-const OrderTypeMarketName string = "MARKET"
-const OrderTypeInfoName string = "INFO"
+const OrderTypeLimitName = "LIMIT"
+const OrderTypeMarketName = "MARKET"
+const OrderTypeInfoName = "INFO"
 
-const OrderDirectionBuyName string = "BUY"
-const OrderDirectionSellName string = "SELL"
+const OrderDirectionBuyName = "BUY"
+const OrderDirectionSellName = "SELL"
 
-const TimeInForceFokName string = "FOK"
-const TimeInForceGtcName string = "GTC"
+const TimeInForceFokName = "FOK"
+const TimeInForceGtcName = "GTC"
 
-const ExecutionStatusCreatedName string = "CREATED"
-const ExecutionStatusExecutingName string = "EXECUTING"
-const ExecutionStatusErrorName string = "ERROR"
-const ExecutionStatusCompletedName string = "COMPLETED"
-const ExecutionStatusTimedOutName string = "TIMED_OUT"
-const ExecutionStatusRejectedName string = "REJECTED"
+const ExecutionStatusCreatedName = "CREATED"
+const ExecutionStatusExecutingName = "EXECUTING"
+const ExecutionStatusErrorName = "ERROR"
+const ExecutionStatusCompletedName = "COMPLETED"
+const ExecutionStatusTimedOutName = "TIMED_OUT"
+const ExecutionStatusRejectedName = "REJECTED"
 
 const DbErrorSleepTime = 10 * time.Second
