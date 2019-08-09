@@ -1,5 +1,7 @@
 package constants
 
+import "time"
+
 const PostgresUrlPropertyName string = "postgres.url"
 const CommandTimeForExecutionSecondsPropertyName string = "command.time.for.execution.seconds"
 const ExchangeNamePropertyName string = "exchange.name"
@@ -23,3 +25,5 @@ const ExecutionStatusErrorName string = "ERROR"
 const ExecutionStatusCompletedName string = "COMPLETED"
 const ExecutionStatusTimedOutName string = "TIMED_OUT"
 const ExecutionStatusRejectedName string = "REJECTED"
+
+const DbErrorSleepTime = 10 * time.Second

@@ -44,8 +44,17 @@ func RunTimeOuter(dburl string, dictionaries *dic.Dictionaries) {
 	statusCreatedId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusCreatedName)
 	statusTimedOutId := dictionaries.ExecutionStatuses().GetIdByName(constants.ExecutionStatusTimedOutName)
 
-	finishStaleCommands := func(baseLine time.Time) (*[]*cmd.Command, error) {
-		return dao.FinishStaleCommands(db, statusCreatedId, statusTimedOutId, baseLine, 10)
+	finishStaleCommands := func(baseLine time.Time) *[]*cmd.Command {
+
+		cmds, err := dao.FinishStaleCommands(db, statusCreatedId, statusTimedOutId, baseLine, 10)
+
+		if err != nil {
+			logErrWithST("tryGetStaleCommands error ", err)
+			time.Sleep(constants.DbErrorSleepTime)
+			return nil
+		}
+
+		return cmds
 	}
 
 	go func() {
@@ -58,13 +67,7 @@ func RunTimeOuter(dburl string, dictionaries *dic.Dictionaries) {
 
 			for {
 
-				cmds, err = finishStaleCommands(time.Now())
-
-				if err != nil {
-					logErrWithST("tryGetStaleCommands error ", err)
-					time.Sleep(10 * time.Second)
-					break
-				}
+				cmds = finishStaleCommands(time.Now())
 
 				if cmds == nil {
 					break

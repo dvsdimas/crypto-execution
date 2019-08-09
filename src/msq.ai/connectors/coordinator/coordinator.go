@@ -115,7 +115,7 @@ func RunCoordinator(dburl string, dictionaries *dic.Dictionaries, out chan<- *pr
 
 			if err != nil {
 				logErrWithST("dbTryGetCommandsForExecution error ! ", err)
-				time.Sleep(5 * time.Second)
+				time.Sleep(constants.DbErrorSleepTime)
 				return nil
 			}
 
