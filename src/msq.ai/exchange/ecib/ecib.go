@@ -7,6 +7,11 @@ import (
 	"msq.ai/connectors/proto"
 )
 
+type msg struct {
+	Header string `json:"header"`
+	Body   string `json:"body"`
+}
+
 func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse, wsUrl string) {
 
 	ctxLog := log.WithFields(log.Fields{"id": "BinanceConnector"})
@@ -19,7 +24,23 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 		log.Fatal("dial:", err)
 	}
 
-	defer c.Close()
+	var m1, m2 = &msg{Header: "Hello", Body: "World"}, &msg{}
+
+	err = c.WriteJSON(m1)
+
+	if err != nil {
+		ctxLog.Fatal("WriteJSON error", err)
+	}
+
+	err = c.ReadJSON(m2)
+
+	if err != nil {
+		ctxLog.Fatal("ReadJSON error", err)
+	}
+
+	ctxLog.Info("Sent: [", m1, "], Get: [", m2, "]")
+
+	_ = c.Close()
 
 	trade := func(request *proto.ExecRequest, response *proto.ExecResponse) *proto.ExecResponse {
 
