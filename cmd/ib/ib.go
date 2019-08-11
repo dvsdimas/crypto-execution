@@ -85,7 +85,7 @@ func main() {
 	responses := make(chan *proto.ExecResponse)
 	dump := make(chan *proto.ExecResponse)
 
-	ecib.RunIbConnector(requests, responses, wsUrl)
+	ecib.RunIbConnector(requests, responses, wsUrl, connectorsExecPoolSize)
 
 	//----------------------------------------- start dumper ------------------------------------------------------
 
