@@ -17,7 +17,7 @@ import (
 
 const propertiesFileName = "ib.properties"
 const propertiesWsUrlName = "ws.url"
-const connectorsExecPoolSize = 200
+const connectorsExecPoolSize = 20
 const dumperExecPoolSize = 10
 
 func init() {

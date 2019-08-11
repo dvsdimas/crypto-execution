@@ -16,9 +16,9 @@ const pingTime = 5
 const timeOutTime = 15
 const K10 = 1024 * 10
 
-type msg struct {
-	Header string `json:"header"`
-	Body   string `json:"body"`
+type rsp struct {
+	Order string
+	Info  string
 }
 
 func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse, wsUrl string, execPoolSize int) {
@@ -28,6 +28,23 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 	var lastTime int64 = 0
 	var connection *websocket.Conn = nil
 	var lock sync.Mutex
+
+	var bytesChanelLock sync.Mutex
+	bytesChanel := make(chan *[]byte)
+
+	//------------------------------------------------------------------------------------------------------------------
+
+	var inChannelsLock sync.Mutex
+
+	inChannelsLock.Lock()
+
+	channels := make(chan chan *rsp, execPoolSize)
+
+	for i := 0; i < execPoolSize; i++ {
+		channels <- make(chan *rsp)
+	}
+
+	inChannelsLock.Unlock()
 
 	//------------------------------------------------------------------------------------------------------------------
 
@@ -110,29 +127,6 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 
 	//------------------------------------------------------------------------------------------------------------------
 
-	mc := make(chan *msg, 10)
-
-	go func() {
-
-		ticker := time.NewTicker(time.Second * 20)
-
-		for {
-
-			select {
-
-			case <-ticker.C:
-				{
-					mc <- &msg{Header: "sadasd", Body: "12345"}
-				}
-
-			}
-
-		}
-
-	}()
-
-	//------------------------------------------------------------------------------------------------------------------
-
 	go func() {
 
 		for {
@@ -211,17 +205,9 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 
 				}
 
-			case m := <-mc:
+			case m := <-bytesChanel:
 				{
-
-					bts, err := json.Marshal(m)
-
-					if err != nil {
-						log.Error("Marshal error", err)
-						continue
-					}
-
-					if err := con.WriteMessage(websocket.TextMessage, bts); err != nil {
+					if err := con.WriteMessage(websocket.TextMessage, *m); err != nil {
 						ctxLog.Error("WriteMessage error", err)
 						con = createConnection()
 						continue
@@ -238,31 +224,43 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 
 	//------------------------------------------------------------------------------------------------------------------
 
-	//var m1, m2 = &msg{Header: "Hello", Body: "World"}, &msg{}
-	//
-	//err = c.WriteJSON(m1)
-	//err = c.SetReadDeadline()
-	//
-	//if err != nil {
-	//	ctxLog.Fatal("WriteJSON error", err)
-	//}
-	//
-	//err = c.ReadJSON(m2)
-	//
-	//if err != nil {
-	//	ctxLog.Fatal("ReadJSON error", err)
-	//}
-	//
-	//ctxLog.Info("Sent: [", m1, "], Get: [", m2, "]")
-	//
-	//_ = c.Close()
-
 	trade := func(request *proto.ExecRequest, response *proto.ExecResponse) *proto.ExecResponse {
 
-		// TODO
+		bts, err := json.Marshal(request)
 
-		return nil
+		if err != nil {
+			log.Error("Marshal error", err)
+			response.Description = "Marshal error [" + err.Error() + "]"
+			return response
+		}
+
+		// TODO LOCK
+		// TODO get free channel
+		// TODO put MAP ID -> channel
+		// TODO UNLOCK
+
+		bytesChanelLock.Lock()
+		bytesChanel <- &bts
+		bytesChanelLock.Unlock()
+
+		// TODO await result on free channel
+
+		// TODO LOCK
+		// TODO remove MAP ID -> channel
+		// TODO return free channel
+		// TODO UNLOCK
+
+		// TODO if nil
+
+		// TODO parse response
+
+		response.Status = proto.StatusOk
+		response.Order = nil // TODO
+
+		return response
 	}
+
+	//------------------------------------------------------------------------------------------------------------------
 
 	check := func(request *proto.ExecRequest, response *proto.ExecResponse) *proto.ExecResponse {
 
@@ -271,6 +269,8 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 		return nil
 	}
 
+	//------------------------------------------------------------------------------------------------------------------
+
 	info := func(request *proto.ExecRequest, response *proto.ExecResponse) *proto.ExecResponse {
 
 		// TODO
@@ -278,6 +278,8 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 		return nil
 
 	}
+
+	//------------------------------------------------------------------------------------------------------------------
 
 	connector.RunConnector(ctxLog, in, out, execPoolSize, trade, check, info)
 }
