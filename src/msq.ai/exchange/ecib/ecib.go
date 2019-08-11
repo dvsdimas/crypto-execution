@@ -12,8 +12,9 @@ import (
 )
 
 const sleepTime = time.Second * 5
-const pingTime = 10
-const timeOutTime = 30
+const pingTime = 5
+const timeOutTime = 15
+const K10 = 1024 * 10
 
 type msg struct {
 	Header string `json:"header"`
@@ -51,7 +52,7 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 			lock.Unlock()
 
 			if tmp == nil {
-				time.Sleep(time.Second)
+				time.Sleep(time.Millisecond * 100)
 				continue
 			}
 
@@ -87,6 +88,9 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 				time.Sleep(sleepTime)
 				continue
 			}
+
+			c.SetReadLimit(K10)
+			c.SetReadLimit(K10)
 
 			updateLastReceiveTime()
 
