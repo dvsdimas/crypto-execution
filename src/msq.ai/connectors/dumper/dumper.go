@@ -53,8 +53,9 @@ func RunDumper(dburl string, dictionaries *dic.Dictionaries, in <-chan *proto.Ex
 		return
 	}
 
-	db.SetMaxIdleConns(execPoolSize + 1)
-	db.SetMaxOpenConns(execPoolSize + 1)
+	db.SetMaxIdleConns(execPoolSize)
+	db.SetMaxOpenConns(execPoolSize)
+	db.SetConnMaxLifetime(time.Minute * 30)
 
 	//------------------------------------------------------------------------------------------------------------------
 
@@ -116,9 +117,25 @@ func RunDumper(dburl string, dictionaries *dic.Dictionaries, in <-chan *proto.Ex
 	performFunction := func(in <-chan *proto.ExecResponse) {
 
 		var err error
+		var response *proto.ExecResponse
+
+		ticker := time.NewTicker(time.Second * 300)
 
 		for {
-			response := <-in
+
+			select {
+
+			case <-ticker.C:
+				{
+					if err := db.Ping(); err != nil {
+						ctxLog.Error("DB Ping error", err)
+					}
+
+					continue
+				}
+
+			case response = <-in:
+			}
 
 			if response != nil {
 				for {
