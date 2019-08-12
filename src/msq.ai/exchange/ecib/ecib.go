@@ -7,6 +7,7 @@ import (
 	"msq.ai/connectors/connector"
 	"msq.ai/connectors/proto"
 	"msq.ai/constants"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -16,6 +17,7 @@ const sleepTime = time.Second * 5
 const pingTime = 5
 const timeOutTime = 15
 const K1 = 1024
+const cidName = "cid"
 
 type ibMarketOrder struct {
 	Code      string `json:"code"`
@@ -25,7 +27,7 @@ type ibMarketOrder struct {
 	Qty       string `json:"qty"`
 	OrderType string `json:"order_type"`
 	// TODO time_in_force
-	// TODO client-order-id
+	Cid string `json:"cid"`
 }
 
 type ibLimitOrder struct {
@@ -37,11 +39,11 @@ type ibLimitOrder struct {
 	OrderType string `json:"order_type"`
 	Price     string `json:"price"`
 	// TODO time_in_force
-	// TODO client-order-id
+	Cid string `json:"cid"`
 }
 
 type rsp struct {
-	Order string
+	RawMap *map[string]interface{}
 }
 
 func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse, wsUrl string, execPoolSize int) {
@@ -210,18 +212,35 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 
 			if tp == websocket.TextMessage {
 
-				//err = json.Unmarshal(bytes, request)
-				//
-				//if err != nil {
-				//	ctxLog.Error("Cannot unmarshal request !!!")
-				//	continue // TODO
-				//}
+				var rawMap map[string]interface{}
 
-				c := getDic(106)
-
-				c <- &rsp{
-					Order: string(bytes),
+				if err := json.Unmarshal(bytes, &rawMap); err != nil {
+					ctxLog.Error("rawMap Unmarshal error [" + string(bytes) + "]")
+					continue
 				}
+
+				cidStr := rawMap[cidName] // TODO check !!!
+
+				if cidStr == nil {
+					ctxLog.Error("cidStr is nil [" + string(bytes) + "]")
+					continue
+				}
+
+				cid, err := strconv.ParseInt(cidStr.(string), 10, 64)
+
+				if err != nil {
+					ctxLog.Error("Cannot convert cidStr to int64 [" + string(bytes) + "]")
+					continue
+				}
+
+				c := getDic(cid)
+
+				if c == nil {
+					ctxLog.Error("Cannot find out channel fir cid [" + string(bytes) + "]")
+					continue
+				}
+
+				c <- &rsp{RawMap: &rawMap}
 
 			} else {
 				ctxLog.Error("Got BinaryMessage from WS !!!")
@@ -292,6 +311,7 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 		if request.RawCmd.OrderType == constants.OrderTypeMarketName {
 
 			var market = ibMarketOrder{
+				Cid:       request.RawCmd.Id,
 				Code:      "PLACE-ORDER",
 				Account:   request.RawCmd.ApiKey,
 				Op:        request.RawCmd.Direction,
@@ -307,6 +327,7 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 		} else if request.RawCmd.OrderType == constants.OrderTypeLimitName {
 
 			var limit = ibLimitOrder{
+				Cid:       request.RawCmd.Id,
 				Code:      "PLACE-ORDER",
 				Account:   request.RawCmd.ApiKey,
 				Op:        request.RawCmd.Direction,
