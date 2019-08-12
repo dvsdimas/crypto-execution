@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"msq.ai/connectors/connector"
 	"msq.ai/connectors/proto"
+	"msq.ai/constants"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,12 +15,33 @@ import (
 const sleepTime = time.Second * 5
 const pingTime = 5
 const timeOutTime = 15
-const K10 = 1024 * 10
+const K1 = 1024
+
+type ibMarketOrder struct {
+	Code      string `json:"code"`
+	Account   string `json:"account"`
+	Op        string `json:"op"`
+	Symbol    string `json:"symbol"`
+	Qty       string `json:"qty"`
+	OrderType string `json:"order_type"`
+	// TODO time_in_force
+	// TODO client-order-id
+}
+
+type ibLimitOrder struct {
+	Code      string `json:"code"`
+	Account   string `json:"account"`
+	Op        string `json:"op"`
+	Symbol    string `json:"symbol"`
+	Qty       string `json:"qty"`
+	OrderType string `json:"order_type"`
+	Price     string `json:"price"`
+	// TODO time_in_force
+	// TODO client-order-id
+}
 
 type rsp struct {
-	Order   string
-	Info    string
-	Request *proto.ExecRequest
+	Order string
 }
 
 func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse, wsUrl string, execPoolSize int) {
@@ -149,8 +171,8 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 				continue
 			}
 
-			c.SetReadLimit(K10)
-			c.SetReadLimit(K10)
+			c.SetReadLimit(K1)
+			c.SetReadLimit(K1)
 
 			updateLastReceiveTime()
 
@@ -188,8 +210,6 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 
 			if tp == websocket.TextMessage {
 
-				var request = proto.ExecRequest{}
-
 				//err = json.Unmarshal(bytes, request)
 				//
 				//if err != nil {
@@ -200,9 +220,7 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 				c := getDic(106)
 
 				c <- &rsp{
-					Order:   "",
-					Info:    "",
-					Request: &request,
+					Order: string(bytes),
 				}
 
 			} else {
@@ -269,9 +287,50 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 
 	//------------------------------------------------------------------------------------------------------------------
 
+	requestToBytes := func(request *proto.ExecRequest) (*[]byte, error) {
+
+		if request.RawCmd.OrderType == constants.OrderTypeMarketName {
+
+			var market = ibMarketOrder{
+				Code:      "PLACE-ORDER",
+				Account:   request.RawCmd.ApiKey,
+				Op:        request.RawCmd.Direction,
+				Symbol:    request.RawCmd.Instrument,
+				Qty:       request.RawCmd.Amount,
+				OrderType: "MKT",
+			}
+
+			bytes, err := json.Marshal(market)
+
+			return &bytes, err
+
+		} else if request.RawCmd.OrderType == constants.OrderTypeLimitName {
+
+			var limit = ibLimitOrder{
+				Code:      "PLACE-ORDER",
+				Account:   request.RawCmd.ApiKey,
+				Op:        request.RawCmd.Direction,
+				Symbol:    request.RawCmd.Instrument,
+				Qty:       request.RawCmd.Amount,
+				OrderType: "LMT",
+				Price:     request.RawCmd.LimitPrice,
+			}
+
+			bytes, err := json.Marshal(limit)
+
+			return &bytes, err
+
+		} else {
+			ctxLog.Fatal("Protocol violation! ExecRequest wrong OrderType ! ", request)
+			return nil, nil
+		}
+	}
+
+	//------------------------------------------------------------------------------------------------------------------
+
 	trade := func(request *proto.ExecRequest, response *proto.ExecResponse) *proto.ExecResponse {
 
-		bts, err := json.Marshal(request) // TODO
+		bts, err := requestToBytes(request)
 
 		if err != nil {
 			log.Error("Marshal error", err)
@@ -283,7 +342,7 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 
 		addDic(request.Cmd.Id, in)
 
-		sendBytes(&bts)
+		sendBytes(bts)
 
 		result := <-in // TODO timeout ??????????
 		ctxLog.Trace(result)

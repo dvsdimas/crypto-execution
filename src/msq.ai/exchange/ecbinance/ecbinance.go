@@ -59,7 +59,7 @@ func RunBinanceConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecRes
 			orderService = orderService.Type(binance.OrderTypeLimit)
 			orderService = orderService.Price(request.RawCmd.LimitPrice)
 		} else {
-			ctxLog.Fatal("Protocol violation! ExecRequest wrong OrderType with empty cmd ! ", request)
+			ctxLog.Fatal("Protocol violation! ExecRequest wrong OrderType ! ", request)
 			return nil
 		}
 
