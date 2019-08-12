@@ -349,6 +349,15 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 
 	//------------------------------------------------------------------------------------------------------------------
 
+	check := func(request *proto.ExecRequest, response *proto.ExecResponse) *proto.ExecResponse {
+
+		// TODO
+
+		return nil
+	}
+
+	//------------------------------------------------------------------------------------------------------------------
+
 	trade := func(request *proto.ExecRequest, response *proto.ExecResponse) *proto.ExecResponse {
 
 		bts, err := requestToBytes(request)
@@ -365,8 +374,32 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 
 		sendBytes(bts)
 
-		result := <-in // TODO timeout ??????????
-		ctxLog.Trace(result)
+		for {
+			ticker := time.NewTicker(time.Second * 60)
+
+			var result *rsp
+
+			select {
+
+			case <-ticker.C:
+				{
+					ctxLog.Error("Didn't get response from WS during 60 sec!", request)
+				}
+
+			case result = <-in:
+				{
+					ctxLog.Trace(result)
+				}
+			}
+
+			if result == nil {
+				return check(request, response)
+			}
+
+			// TODO check is it final order status, if not
+
+			break // TODO
+		}
 
 		rmDic(request.Cmd.Id)
 
@@ -378,15 +411,6 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 		response.Order = nil // TODO
 
 		return response
-	}
-
-	//------------------------------------------------------------------------------------------------------------------
-
-	check := func(request *proto.ExecRequest, response *proto.ExecResponse) *proto.ExecResponse {
-
-		// TODO
-
-		return nil
 	}
 
 	//------------------------------------------------------------------------------------------------------------------
