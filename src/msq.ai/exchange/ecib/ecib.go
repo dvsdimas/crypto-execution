@@ -17,8 +17,9 @@ const timeOutTime = 15
 const K10 = 1024 * 10
 
 type rsp struct {
-	Order string
-	Info  string
+	Order   string
+	Info    string
+	Request *proto.ExecRequest
 }
 
 func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse, wsUrl string, execPoolSize int) {
@@ -31,6 +32,12 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 
 	var bytesChanelLock sync.Mutex
 	bytesChanel := make(chan *[]byte)
+
+	sendBytes := func(bts *[]byte) {
+		bytesChanelLock.Lock()
+		bytesChanel <- bts
+		bytesChanelLock.Unlock()
+	}
 
 	//------------------------------------------------------------------------------------------------------------------
 
@@ -45,6 +52,42 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 	}
 
 	inChannelsLock.Unlock()
+
+	getChannel := func() chan *rsp {
+		inChannelsLock.Lock()
+		in := <-channels
+		inChannelsLock.Unlock()
+		return in
+	}
+
+	returnChannel := func(c chan *rsp) {
+		inChannelsLock.Lock()
+		channels <- c
+		inChannelsLock.Unlock()
+	}
+
+	//------------------------------------------------------------------------------------------------------------------
+	var dicLock sync.Mutex
+	dic := make(map[int64]chan *rsp)
+
+	addDic := func(id int64, c chan *rsp) {
+		dicLock.Lock()
+		dic[id] = c
+		dicLock.Unlock()
+	}
+
+	rmDic := func(id int64) {
+		dicLock.Lock()
+		delete(dic, id)
+		dicLock.Unlock()
+	}
+
+	getDic := func(id int64) chan *rsp {
+		dicLock.Lock()
+		c := dic[id]
+		dicLock.Unlock()
+		return c
+	}
 
 	//------------------------------------------------------------------------------------------------------------------
 
@@ -145,24 +188,26 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 
 			if tp == websocket.TextMessage {
 
-				ctxLog.Trace("TextMessage")
+				var request = proto.ExecRequest{}
 
-			} else if tp == websocket.BinaryMessage {
+				//err = json.Unmarshal(bytes, request)
+				//
+				//if err != nil {
+				//	ctxLog.Error("Cannot unmarshal request !!!")
+				//	continue // TODO
+				//}
 
-				ctxLog.Trace("BinaryMessage")
+				c := getDic(106)
 
-			} else if tp == websocket.CloseMessage {
+				c <- &rsp{
+					Order:   "",
+					Info:    "",
+					Request: &request,
+				}
 
-				ctxLog.Trace("CloseMessage")
-
-			} else if tp == websocket.PingMessage {
-
-				ctxLog.Trace("PingMessage")
-
-			} else if tp == websocket.PongMessage {
-
-				ctxLog.Trace("PongMessage")
-
+			} else {
+				ctxLog.Error("Got BinaryMessage from WS !!!")
+				ctxLog.Printf("BinaryMessage: [%s]", bytes)
 			}
 		}
 
@@ -226,7 +271,7 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 
 	trade := func(request *proto.ExecRequest, response *proto.ExecResponse) *proto.ExecResponse {
 
-		bts, err := json.Marshal(request)
+		bts, err := json.Marshal(request) // TODO
 
 		if err != nil {
 			log.Error("Marshal error", err)
@@ -234,25 +279,20 @@ func RunIbConnector(in <-chan *proto.ExecRequest, out chan<- *proto.ExecResponse
 			return response
 		}
 
-		// TODO LOCK
-		// TODO get free channel
-		// TODO put MAP ID -> channel
-		// TODO UNLOCK
+		in := getChannel()
 
-		bytesChanelLock.Lock()
-		bytesChanel <- &bts
-		bytesChanelLock.Unlock()
+		addDic(request.Cmd.Id, in)
 
-		// TODO await result on free channel
+		sendBytes(&bts)
 
-		// TODO LOCK
-		// TODO remove MAP ID -> channel
-		// TODO return free channel
-		// TODO UNLOCK
+		result := <-in // TODO timeout ??????????
+		ctxLog.Trace(result)
 
-		// TODO if nil
+		rmDic(request.Cmd.Id)
 
-		// TODO parse response
+		returnChannel(in)
+
+		// TODO prepare response
 
 		response.Status = proto.StatusOk
 		response.Order = nil // TODO

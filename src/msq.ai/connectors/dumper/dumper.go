@@ -120,16 +120,18 @@ func RunDumper(dburl string, dictionaries *dic.Dictionaries, in <-chan *proto.Ex
 		for {
 			response := <-in
 
-			for {
-				err = dumpResponse(response)
+			if response != nil {
+				for {
+					err = dumpResponse(response)
 
-				if err == nil {
-					break
+					if err == nil {
+						break
+					}
+
+					logErrWithST("Cannot save response error", err)
+
+					time.Sleep(5 * time.Second)
 				}
-
-				logErrWithST("Cannot save response error", err)
-
-				time.Sleep(5 * time.Second)
 			}
 
 			lockOut.Lock()
@@ -173,7 +175,7 @@ func RunDumper(dburl string, dictionaries *dic.Dictionaries, in <-chan *proto.Ex
 			response := <-in
 
 			if response == nil {
-				ctxLog.Fatal("Protocol violation! ExecRequest is nil")
+				ctxLog.Error("Protocol violation! ExecResponse is nil")
 			}
 
 			getNextChannel() <- response
