@@ -55,7 +55,6 @@ func RunDumper(dburl string, dictionaries *dic.Dictionaries, in <-chan *proto.Ex
 
 	db.SetMaxIdleConns(execPoolSize)
 	db.SetMaxOpenConns(execPoolSize)
-	db.SetConnMaxLifetime(time.Minute * 30)
 
 	//------------------------------------------------------------------------------------------------------------------
 
