@@ -12,14 +12,14 @@ import (
 	"time"
 )
 
-func RunTimeOuter(dburl string, dictionaries *dic.Dictionaries) {
+func RunTimeOuter(dbUrl string, dictionaries *dic.Dictionaries, redisUrl string) {
 
 	ctxLog := log.WithFields(log.Fields{"id": "TimeOuter"})
 
 	ctxLog.Info("TimeOuter is going to start")
 
-	if len(dburl) < 1 {
-		ctxLog.Fatal("dburl is empty !")
+	if len(dbUrl) < 1 {
+		ctxLog.Fatal("dbUrl is empty !")
 	}
 
 	if dictionaries == nil {
@@ -31,10 +31,10 @@ func RunTimeOuter(dburl string, dictionaries *dic.Dictionaries) {
 		ctxLog.WithField("stacktrace", fmt.Sprintf("%+v", err.(*errors.Error).ErrorStack())).Error(msg)
 	}
 
-	db, err := pgh.GetDbByUrl(dburl)
+	db, err := pgh.GetDbByUrl(dbUrl)
 
 	if err != nil {
-		logErrWithST("Cannot connect to DB with URL ["+dburl+"] ", err)
+		logErrWithST("Cannot connect to DB with URL ["+dbUrl+"] ", err)
 	}
 
 	db.SetMaxIdleConns(1)
