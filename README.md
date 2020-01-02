@@ -1,6 +1,4 @@
-# This project was designed and developed by me for MSQ.AI firm, 
-# but they've decided to take my work, ditch me out and not to pay for it.
-# In this case I have all rights to keep this project as my property and make it open source under MIT license.
+# This project was designed and developed by me for MSQ.AI firm, but they've decided to take my work, ditch me out and not to pay for it. In this case I have all rights to keep this project as my property and make it open source under MIT license.
 
 
 
