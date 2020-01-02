@@ -1,14 +1,18 @@
-# This project was designed and developed by me for MSQ.AI firm, but they've decided to take my work, ditch me out and not to pay for it. In this case I have all rights to keep this project as my property and make it open source under MIT license.
+# Notice
 
+This project was designed and developed by me for MSQ.AI firm, but they've decided to take my work, ditch me out and not to pay for it. In this case I have all rights to keep this project as my property and make it open source under MIT license.
 
-Main idea of the project is providing plain REST api for trading in any possible places such as: Crypto Exchanges, Brokers, whatever that allows to buy and sell. Also all execution steps are persisted in Postgress and after any software failures, system consistency will be restored, all uncetanties in execution states will be clarified at trading providers with theirs API automatically during recovery procedure.
+# Description
+
+Main idea of the project is providing plain REST api for trading in any possible places such as: Crypto Exchanges, Brokers, whatever that allows to buy and sell. Also all execution steps are persisted in DB and after any software failures, system consistency will be restored, all uncetanties in execution states will be clarified at trading providers with theirs API automatically during recovery procedure.
 
 It designed with idea that start up should be cheap, but with possibility to raise and handle big load without additional afforts. 
 
 So it is just execution and the logic for initiation the trade, choosing a sourse for trade, instrument, amount and price are out of the project.
 
 
-# msq-execution REST API
+
+# execution REST API
 
 
 # PUT MARKET BUY 
