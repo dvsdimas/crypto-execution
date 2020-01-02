@@ -4,7 +4,7 @@ This project was designed and developed by me for MSQ.AI firm, but they've decid
 
 # Description
 
-Main idea of the project is providing plain REST api for trading in any possible places such as: Crypto Exchanges, Brokers, whatever that allows to buy and sell. Also all execution steps are persisted in DB and after any software failures, system consistency will be restored, all uncetanties in execution states will be clarified at trading providers with theirs API automatically during recovery procedure.
+The purpose of the project is providing plain REST api for trading in any possible places such as: Crypto Exchanges, Brokers, whatever that allows to buy and sell. Also all execution steps are persisted in DB and after any software failures, system consistency will be restored, all uncetanties in execution states will be clarified at trading providers with theirs API automatically during recovery procedure.
 
 It designed with idea that start up should be cheap, but with possibility to raise and handle big load without additional afforts. 
 
