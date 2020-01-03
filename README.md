@@ -20,6 +20,11 @@ Exchange connectors (EC) incapsulate all logic for communicating with a dedicate
 
 This trivial solution allows to make real cheap configuration just for start and make quite tricky configuration for handling really big load with sharding in DB and in other components.
 
+# State
+
+Currently project is in alpha state. Binance Exchange can be used with market or limit orders.
+
+Absence of tests according developing in a rush and possibility of been be ditched out of the startup.
 
 
 # execution REST API
