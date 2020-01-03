@@ -10,6 +10,16 @@ It designed with idea that start up should be cheap, but with possibility to rai
 
 So it is just execution and the logic for initiation the trade, choosing a sourse for trade, instrument, amount and price are out of the project.
 
+# Structure
+
+Logically it consist with two components: Execution Module (EM) and Exchange connectors (EC).
+
+Execution Module (EM) provide REST API for trading. It just save command in DB and by request can provide information about the state of execution.
+
+Exchange connectors (EC) incapsulate all logic for communicating with a dedicated provider, e.g. Binance or Kraken, etc.
+
+This trivial solution allows to make real cheap configuration just for start and make quite tricky configuration for handling really big load with sharding in DB and in other components.
+
 
 
 # execution REST API
