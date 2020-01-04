@@ -22,8 +22,10 @@ This trivial solution allows to make real cheap configuration just for start and
 
 # State
 
-Currently project is in alpha state. Binance Exchange can be used with market or limit orders.
+Currently project is in alpha state and I'm not sure that I will proceed development. 
+Binance Exchange can be used with market or limit orders.
 
+It is my first project on Go language, so it might be not Go idiomatic.
 Absence of tests according developing in a rush and possibility of been be ditched out of the startup.
 
 
