@@ -12,7 +12,7 @@ So it is just execution and the logic for initiation the trade, choosing a sours
 
 # Structure
 
-Logically it consist with two components: Execution Module (EM) and Exchange connectors (EC).
+Logically it consists with two components: Execution Module (EM) and Exchange connectors (EC).
 
 Execution Module (EM) provide REST API for trading. It just save command in DB and by request can provide information about the state of execution.
 
@@ -35,6 +35,8 @@ Absence of tests according developing in a rush and possibility of been be ditch
 # REST API examples for Curl
 
 All trade operation executes on behalf of client, so they should provide api_key and secret_key.
+All responses contain JSON.
+All parameters have self explanatory names except 'finger_print'. It has purpose to make all API requests idempotent, because we cannot have duplicates in financial operations. If we lost connection after api call we can easily repeat it without any care about duplicates, it will return the same result. So it must be unique, UUID suits well for this parameter.
 
 MARKET BUY 
 
