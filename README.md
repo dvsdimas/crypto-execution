@@ -18,7 +18,10 @@ Execution Module (EM) provide REST API for trading. It just save command in DB a
 
 Exchange connectors (EC) incapsulate all logic for communicating with a dedicated provider, e.g. Binance or Kraken, etc.
 
-This trivial solution allows to make real cheap configuration just for start and make quite tricky configuration for handling really big load with sharding in DB and in other components.
+This trivial solution allows to make really cheap configuration just for start and make quite tricky configuration for handling really big load with sharding in DB and in other components.
+Durability might be achieved by running several Execution Modules behind any http load balancers.
+And we can easily have a lot of Exchange Connectors even for one provider, they will autobalance theirs performance because every instance gets some bunch of work and proceed execution till all requestes will be done.
+About DB, we can start up just with one instance and split it by Provider later if performance of DB is not enough.
 
 # State
 
@@ -29,8 +32,9 @@ It is my first project on Go language, so it might be not Go idiomatic.
 Absence of tests according developing in a rush and possibility of been be ditched out of the startup.
 
 
-# execution REST API
+# REST API examples for Curl
 
+All trade operation executes on behalf of client, so they should provide api_key and secret_key.
 
 MARKET BUY 
 
